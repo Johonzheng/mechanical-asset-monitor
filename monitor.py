@@ -123,7 +123,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps):
     focus_pool = [r for r in yf_reps if r['cross_signal'] or r['extremum_signal']]
     
     # 构造 Markdown
-    md = "## 🎯 核心阵地异动 (仅股/ETF)\n---\n"
+    md = "## 🎯 全市场股票、ETF均线交叉或极值异动情况\n---\n"
     if focus_pool:
         for r in focus_pool:
             md += f"> **{r['name']}** ({r['ticker']})\n"
@@ -133,7 +133,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps):
     else:
         md += "> *本周常规池无标的触发均线交叉或极值。*\n\n"
 
-    md += "## 📊 资产涨跌幅龙虎榜\n---\n"
+    md += "## 📊 资产标的涨跌幅情况\n---\n"
     
     if yf_reps:
         md += "### 🏛️ 股票与场内 ETF\n"
@@ -162,7 +162,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps):
         
         with open(file_path, "w", encoding="utf-8") as f:
             # 加上大标题以便在 GitHub 网页端阅读
-            f.write(f"# 📈 资产网格周报 ({today_str})\n\n" + md)
+            f.write(f"# 📈 持仓资产周表现报告 ({today_str})\n\n" + md)
             
         print(f"✅ 报告已本地生成，路径: {file_path}")
     except Exception as e:
@@ -174,7 +174,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps):
         return
         
     url = f"https://sctapi.ftqq.com/{SENDKEY}.send"
-    res = requests.post(url, data={"title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产网格周报", "desp": md})
+    res = requests.post(url, data={"title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 持仓资产周表现报告", "desp": md})
     print("Server酱 推送响应:", res.text)
 
 if __name__ == "__main__":
