@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 import requests
-import ccxt
 import akshare as ak
 import os
 import datetime
@@ -108,11 +107,21 @@ def fetch_fund_data(item):
     except: return None
 
 def fetch_crypto_data(item):
+    """获取加密货币数据 (智能路由，绕过 Binance 的美国 IP 限制)"""
     try:
-        ohlcv = ccxt.binance().fetch_ohlcv(item['ticker'], timeframe='1w', limit=50)
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        return analyze_asset(df, item, calc_signals=False)
-    except: return None
+        # 将清单里的 BTC/USDT 自动转换为 Yahoo 格式的 BTC-USD
+        yf_symbol = str(item['ticker']).upper().replace('/USDT', '-USD').replace('/USDC', '-USD')
+        
+        # 使用 yfinance 替代 ccxt，完美解决 GitHub 机房被拦截的问题
+        data = yf.Ticker(yf_symbol).history(period="1y", interval="1wk")
+        
+        if len(data) == 0: 
+            return None
+            
+        return analyze_asset(data, item, calc_signals=False)
+    except Exception as e:
+        print(f"[{item['ticker']}] 加密货币获取失败: {e}")
+        return None
 
 def send_and_archive_report(yf_reps, crypto_reps, fund_reps):
     """排序、聚合、生成Markdown、本地归档并发送推送"""
