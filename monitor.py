@@ -12,13 +12,20 @@ CSV_FILE = 'portfolio.csv'
 # ==================================================
 
 def load_portfolio():
-    """读取标的清单，新增 'jj' 场外基金类型"""
+    """读取标的清单：智能兼容 Windows Excel (GBK) 与 Linux (UTF-8) 编码"""
     if not os.path.exists(CSV_FILE):
-        print(f"未找到 {CSV_FILE} 文件。")
+        print(f"⚠️ 未找到 {CSV_FILE} 文件。")
         return [], [], []
         
     try:
-        df = pd.read_csv(CSV_FILE, skipinitialspace=True)
+        # 优先尝试 GitHub 标准的 UTF-8 编码
+        df = pd.read_csv(CSV_FILE, skipinitialspace=True, encoding='utf-8')
+    except UnicodeDecodeError:
+        # 如果报错，自动退网捕获，兼容国内 Excel 默认导出的 GBK 编码
+        df = pd.read_csv(CSV_FILE, skipinitialspace=True, encoding='gbk')
+        
+    try:
+        # 强制将表头转换为小写并去除空格，防止你在 Excel 里多敲了空格
         df.columns = [str(c).strip().lower() for c in df.columns]
         
         yf_tickers = df[df['type'].str.strip().str.lower() == 'yf']['ticker'].str.strip().tolist()
@@ -27,7 +34,7 @@ def load_portfolio():
         
         return yf_tickers, crypto_tickers, fund_tickers
     except Exception as e:
-        print(f"读取持仓清单解析失败: {e}")
+        print(f"⚠️ 读取持仓清单解析失败，请检查 CSV 列名是否严格为 ticker 和 type: {e}")
         return [], [], []
 
 def analyze_asset(df, ticker):
