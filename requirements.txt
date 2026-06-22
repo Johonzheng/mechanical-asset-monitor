@@ -1,0 +1,4 @@
+yfinance==0.2.37
+pandas==2.2.1
+requests==2.31.0
+ccxt==4.2.59
