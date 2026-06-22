@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 import requests
-import ccxt
 import akshare as ak
 import os
 import datetime
@@ -85,35 +84,67 @@ def analyze_asset(df, item, calc_signals=True):
     }
 
 def fetch_yf_data(item):
-    """双通道冗余抓取引擎 (股票/场内ETF)"""
+    """借鉴VBA分流思想的双通道智能冗余抓取引擎 (完美兼容港股与场内LOF/ETF)"""
     ticker = item['ticker']
+    clean_code = ticker.split('.')[0]
     
     # === 通道 A: 国际主路由 (Yahoo Finance) ===
     try:
-        data = yf.Ticker(ticker).history(period="2y", interval="1wk")
+        yf_ticker = ticker
+        # 针对港股，处理Yahoo可能要求的4位代码格式(如00001.HK转0001.HK)
+        if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
+            yf_ticker = f"{clean_code[1:]}.HK"
+            
+        data = yf.Ticker(yf_ticker).history(period="2y", interval="1wk")
         if len(data) > 0:
             return analyze_asset(data, item, calc_signals=True)
     except Exception:
-        pass # 静默捕获异常，准备降级
+        pass 
         
-    # === 通道 B: 国内降级路由 (AkShare) ===
+    # === 通道 B: 国内东财/新浪降级分流路由 (AkShare) ===
     try:
-        # 仅针对国内 A股/ETF 启用本地接口接管
-        if '.SS' in ticker or '.SZ' in ticker:
-            clean_code = ticker.replace('.SS', '').replace('.SZ', '')
-            # 获取日线数据
-            df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qq")
-            if not df.empty:
-                df['日期'] = pd.to_datetime(df['日期'])
-                df.set_index('日期', inplace=True)
-                df.rename(columns={'收盘': 'close', '最高': 'high', '最低': 'low'}, inplace=True)
-                # 动态重采样：将日线合成为周线 (以周五为结算点)
+        df = pd.DataFrame()
+        
+        if '.HK' in ticker:
+            # 1. 港股专用高可靠性历史通道
+            df = ak.stock_hk_hist(symbol=clean_code, period="daily", adjust="qfq")
+            
+        elif '.SS' in ticker or '.SZ' in ticker:
+            # 2. 场内基金与普通股票特征码分流 (借鉴VBA规则)
+            # 场内ETF/LOF代码通常以 15, 16, 18, 51, 56, 58 等开头
+            if clean_code.startswith(('15', '16', '18', '51', '56', '58')):
+                df = ak.fund_etf_category_hist_em(symbol=clean_code, period="daily", adjust="qfq")
+            else:
+                df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qfq")
+        
+        # 解析国内多源数据，统一映射为标准格式并动态合成为周线
+        if df is not None and not df.empty:
+            df.columns = [str(c).strip() for c in df.columns]
+            rename_dict = {
+                '日期': 'date', 'Date': 'date',
+                '开盘': 'open', 'Open': 'open',
+                '收盘': 'close', 'Close': 'close',
+                '最高': 'high', 'High': 'high',
+                '最低': 'low', 'Low': 'low'
+            }
+            df.rename(columns=rename_dict, inplace=True)
+            
+            if 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'])
+                df.set_index('date', inplace=True)
+            
+            df.columns = [str(c).lower() for c in df.columns]
+            
+            if 'close' in df.columns:
+                if 'high' not in df.columns: df['high'] = df['close']
+                if 'low' not in df.columns: df['low'] = df['close']
+                
+                # 动态重采样：将国内数据源的日线完美转换为周五结算的周线
                 weekly_df = df.resample('W-FRI').agg({'close': 'last', 'high': 'max', 'low': 'min'}).dropna()
                 return analyze_asset(weekly_df, item, calc_signals=True)
-    except Exception:
-        pass # 备用通道也失败
+    except Exception as e:
+        print(f"⚠️ 降级分流路由处理 [{ticker}] 时发生异常: {e}")
 
-    # 双通道全部失效，返回 None 打入失败池
     return None
 
 def fetch_fund_data(item):
@@ -139,14 +170,13 @@ def fetch_crypto_data(item):
     except: return None
 
 def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
-    """排序、聚合、生成Markdown、本地归档并发送推送，包含容错展示"""
     yf_reps.sort(key=lambda x: x['raw_return'], reverse=True)
     crypto_reps.sort(key=lambda x: x['raw_return'], reverse=True)
     fund_reps.sort(key=lambda x: x['raw_return'], reverse=True)
 
     focus_pool = [r for r in yf_reps if r['cross_signal'] or r['extremum_signal']]
     
-    md = "## 🎯 核心异动 (仅股/ETF)\n---\n"
+    md = "## 🎯 核心阵地异动 (仅股/ETF)\n---\n"
     if focus_pool:
         for r in focus_pool:
             md += f"> **{r['name']}** ({r['ticker']})\n"
@@ -154,9 +184,9 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
             if r['cross_signal']: md += f"> 趋势: {r['cross_signal']}\n"
             if r['extremum_signal']: md += f"> 位置: {r['extremum_signal']}\n\n"
     else:
-        md += "> *本周无标的触发均线交叉或极值。*\n\n"
+        md += "> *本周常规池无标的触发均线交叉或极值。*\n\n"
 
-    md += "## 📊 资产周涨跌幅\n---\n"
+    md += "## 📊 资产涨跌幅龙虎榜\n---\n"
     
     if yf_reps:
         md += "### 🏛️ 股票与场内 ETF\n"
@@ -176,10 +206,9 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
             md += f"- **{r['name']}** `{r['performance']}`\n"
         md += "\n"
 
-    # === 🚨 异常与缺失标的专区 ===
     if failed_list:
-        md += "## ⚠️ 异常与缺失标的\n---\n"
-        md += "> 以下标的由于停牌、代码错误或双接口限流，本周未获取到数据：\n> \n"
+        md += "## ⚠️ 核心盲区公示 (双通道均告破)\n---\n"
+        md += "> 以下标的已彻底停牌、变更代码或遭遇极端的两端数据拦截：\n> \n"
         for fail in failed_list:
             md += f"> - **{fail['name']}** ({fail['ticker']})\n"
 
@@ -189,7 +218,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
         file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.md")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f"# 📈 持仓资产周报 ({today_str})\n\n" + md)
+            f.write(f"# 📈 资产网格周报 ({today_str})\n\n" + md)
         print(f"✅ 报告已本地生成，路径: {file_path}")
     except Exception as e:
         print(f"⚠️ 报告本地归档失败: {e}")
@@ -199,12 +228,12 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
         return
         
     url = f"https://sctapi.ftqq.com/{SENDKEY}.send"
-    res = requests.post(url, data={"title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 持仓资产周报", "desp": md})
+    res = requests.post(url, data={"title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产网格周报", "desp": md})
     print("Server酱 推送响应:", res.text)
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行极速全域数据抽取(含双通道容错)...")
+    print(f"[{start_time}] 引擎点火，执行极速全域数据抽取(含特征码多路容错)...")
     
     yf_assets, crypto_assets, fund_assets = load_portfolio()
     yf_reports, crypto_reports, fund_reports = [], [], []
