@@ -84,14 +84,13 @@ def analyze_asset(df, item, calc_signals=True):
     }
 
 def fetch_yf_data(item):
-    """借鉴VBA分流思想的双通道智能冗余抓取引擎 (完美兼容港股与场内LOF/ETF)"""
+    """双通道智能冗余抓取引擎 (完美兼容港股与场内LOF/ETF)"""
     ticker = item['ticker']
     clean_code = ticker.split('.')[0]
     
     # === 通道 A: 国际主路由 (Yahoo Finance) ===
     try:
         yf_ticker = ticker
-        # 针对港股，处理Yahoo可能要求的4位代码格式(如00001.HK转0001.HK)
         if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
             yf_ticker = f"{clean_code[1:]}.HK"
             
@@ -101,49 +100,52 @@ def fetch_yf_data(item):
     except Exception:
         pass 
         
-    # === 通道 B: 国内东财/新浪降级分流路由 (AkShare) ===
+    # === 通道 B: 腾讯大盘历史K线分流路由 (借鉴VBA映射逻辑，完美自愈) ===
     try:
-        df = pd.DataFrame()
-        
-        if '.HK' in ticker:
-            # 1. 港股专用高可靠性历史通道
-            df = ak.stock_hk_hist(symbol=clean_code, period="daily", adjust="qfq")
+        # 将代码精确平移为腾讯标准前缀格式
+        if '.SS' in ticker:
+            target_code = 'sh' + clean_code
+        elif '.SZ' in ticker:
+            target_code = 'sz' + clean_code
+        elif '.HK' in ticker:
+            target_code = 'hk' + clean_code
+        else:
+            target_code = 'us' + ticker.replace('-', '.') # 兼容美股特殊后缀
             
-        elif '.SS' in ticker or '.SZ' in ticker:
-            # 2. 场内基金与普通股票特征码分流 (借鉴VBA规则)
-            # 场内ETF/LOF代码通常以 15, 16, 18, 51, 56, 58 等开头
-            if clean_code.startswith(('15', '16', '18', '51', '56', '58')):
-                df = ak.fund_etf_category_hist_em(symbol=clean_code, period="daily", adjust="qfq")
-            else:
-                df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qfq")
-        
-        # 解析国内多源数据，统一映射为标准格式并动态合成为周线
-        if df is not None and not df.empty:
-            df.columns = [str(c).strip() for c in df.columns]
-            rename_dict = {
-                '日期': 'date', 'Date': 'date',
-                '开盘': 'open', 'Open': 'open',
-                '收盘': 'close', 'Close': 'close',
-                '最高': 'high', 'High': 'high',
-                '最低': 'low', 'Low': 'low'
-            }
-            df.rename(columns=rename_dict, inplace=True)
-            
-            if 'date' in df.columns:
-                df['date'] = pd.to_datetime(df['date'])
-                df.set_index('date', inplace=True)
-            
-            df.columns = [str(c).lower() for c in df.columns]
-            
-            if 'close' in df.columns:
-                if 'high' not in df.columns: df['high'] = df['close']
-                if 'low' not in df.columns: df['low'] = df['close']
+        # 请求 120 根数据，直接获取现成的历史周K线(包含LOF、ETF和港股)，无需本地日线合成，极度精准
+        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={target_code},week,,,120,qfq"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            json_data = res.json()
+            if 'data' in json_data and target_code in json_data['data']:
+                stock_data = json_data['data'][target_code]
+                # 兼容腾讯前复权(fqweek)与普通周线(week)的键名
+                k_data = stock_data.get('fqweek', stock_data.get('week', []))
                 
-                # 动态重采样：将国内数据源的日线完美转换为周五结算的周线
-                weekly_df = df.resample('W-FRI').agg({'close': 'last', 'high': 'max', 'low': 'min'}).dropna()
-                return analyze_asset(weekly_df, item, calc_signals=True)
+                if k_data and len(k_data) >= 2:
+                    cleaned_rows = []
+                    # 腾讯标准K线数组结构: [日期, 开盘, 收盘, 最高, 最低, 成交量]
+                    for row in k_data:
+                        if len(row) >= 6:
+                            cleaned_rows.append({
+                                'date': row[0],
+                                'open': float(row[1]),
+                                'close': float(row[2]),
+                                'high': float(row[3]),
+                                'low': float(row[4]),
+                                'volume': float(row[5])
+                            })
+                    
+                    df = pd.DataFrame(cleaned_rows)
+                    df['date'] = pd.to_datetime(df['date'])
+                    df.set_index('date', inplace=True)
+                    
+                    return analyze_asset(df, item, calc_signals=True)
     except Exception as e:
-        print(f"⚠️ 降级分流路由处理 [{ticker}] 时发生异常: {e}")
+        print(f"⚠️ 腾讯备用通道处理 [{ticker}] 时发生异常: {e}")
 
     return None
 
