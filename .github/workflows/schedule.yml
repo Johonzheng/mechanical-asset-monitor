@@ -2,7 +2,6 @@ name: Systemic Asset Monitor
 
 on:
   schedule:
-    # 设定为每周六 UTC 02:00 运行 (北京/香港时间周六 10:00)
     - cron: '0 2 * * 6'
   workflow_dispatch:
 
@@ -11,19 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # 升级到 v4 消除 Node.js 警告
       - name: 拉取代码库
         uses: actions/checkout@v4
       
-      # 升级到 v5 消除 Node.js 警告
       - name: 配置 Python 环境
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          # 开启内部缓存机制，大幅提升每次运行的启动速度
-          cache: 'pip' 
+          # 注意：这里删除了 cache: 'pip'，彻底解除对外部文本文件的依赖
           
-      - name: 部署执行环境 (直装模式，不再依赖 requirements.txt)
+      - name: 部署执行环境
         run: |
           python -m pip install --upgrade pip
           pip install yfinance pandas requests ccxt akshare
