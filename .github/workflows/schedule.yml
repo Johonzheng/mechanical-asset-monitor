@@ -1,0 +1,30 @@
+name: Systemic Asset Monitor
+
+on:
+  schedule:
+    # 设定为每周六 UTC 02:00 运行 (北京/香港时间周六 10:00)
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 配置 Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: 部署执行环境
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: 触发周报生成与推送
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+        run: |
+          python monitor.py
