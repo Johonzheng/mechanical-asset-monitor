@@ -17,7 +17,7 @@ TLT,iShares安硕20年期以上美国国债,yf
 050025,博时标普500ETF联接A,jj
 TSM,台积电,yf
 001668,汇添富全球移动互联混合(QDII)人民币A,jj
-164824,印度基金LOF,jj
+164824.SZ,印度基金LOF,yf
 007280,摩根日本精选股票(QDII)A,jj
 006105,宏利印度股票(QDII)A,jj
 SGOV,Ishares 0-3 Month Treasury Bond Etf,yf
@@ -27,7 +27,7 @@ SGOL,ETFS实物瑞士黄金股份,yf
 100050,富国全球债券(QDII)人民币A,jj
 09988.HK,阿里巴巴-W,yf
 159985.SZ,豆粕ETF华夏,yf
-501018,南方原油LOF,jj
+501018.SS,南方原油LOF,yf
 159928.SZ,消费ETF汇添富,yf
 159659.SZ,纳斯达克100ETF招商,yf
 162415.SZ,美国消费LOF,yf
@@ -35,7 +35,7 @@ SGOL,ETFS实物瑞士黄金股份,yf
 270042,广发纳斯达克100ETF联接人民币(QDII)A,jj
 PFF,优先股指数ETF-iShares S&P,yf
 KO,可口可乐,yf
-162411,华宝油气LOF,jj
+162411.SZ,华宝油气LOF,yf
 513970.SS,恒生消费ETF景顺,yf
 513520.SS,日经ETF华夏,yf
 159920.SZ,恒生ETF华夏,yf
