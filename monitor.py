@@ -228,8 +228,8 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
         md += "\n"
 
     if failed_list:
-        md += "## ⚠️ 核心盲区公示 (多通道均告破)\n---\n"
-        md += "> 以下标的已彻底停牌、变更代码或遭遇极端的拦截：\n> \n"
+        md += "## ⚠️ 多通道无法获取数据\n---\n"
+        md += "> 以下标的获取数据异常：\n> \n"
         for fail in failed_list:
             md += f"> - **{fail['name']}** ({fail['ticker']})\n"
 
