@@ -45,13 +45,12 @@ def load_portfolio():
 def align_to_last_friday(df):
     """
     【时间轴强锁核心】降维打击接口错位，手动生成纯净周线
-    逻辑：只吃日线数据，切断本周末的所有噪音，强行按周五对齐。
     """
     if df is None or df.empty:
         return None
         
     try:
-        # 统一剥离时区，防暴毙
+        # 统一剥离时区
         if df.index.tz is not None:
             df.index = df.index.tz_localize(None)
             
@@ -60,7 +59,7 @@ def align_to_last_friday(df):
         days_since_friday = (today.dayofweek - 4) % 7
         last_friday = today - pd.Timedelta(days=days_since_friday)
         
-        # 核心裁切：一刀切除所有晚于上周五的 K 线（消灭美股幻影与Crypto周末波动）
+        # 切除所有晚于上周五的 K 线
         df_filtered = df[df.index <= (last_friday + pd.Timedelta(hours=23, minutes=59))]
         
         if df_filtered.empty:
@@ -82,10 +81,8 @@ def align_to_last_friday(df):
         return None
 
 def analyze_asset(weekly_df, item, calc_signals=True):
-    """因为传入的数据已被完美闭合，直接取末尾数据即可，绝对与软件同频"""
     weekly_df.columns = [str(c).lower() for c in weekly_df.columns]
     
-    # 最后一根 K 线就是确定收盘的本周，倒数第二根是上周
     prev_week = weekly_df.iloc[-2]
     last_week = weekly_df.iloc[-1]
     
@@ -112,7 +109,6 @@ def analyze_asset(weekly_df, item, calc_signals=True):
             cross_signal = "✅ **金叉确立** (5周上穿20周)"
             
         if len(weekly_df) >= 52:
-            # 扫描过去一整年（不包含本周最后一日）的高低点
             past_52_weeks = weekly_df.iloc[-53:-1]
             if last_week['close'] >= past_52_weeks['high'].max():
                 extremum_signal = "🚀 **突破一年新高**"
@@ -129,11 +125,10 @@ def analyze_asset(weekly_df, item, calc_signals=True):
     }
 
 def fetch_yf_data(item):
-    """全面弃用 1wk 接口，获取日线喂给降维对齐器"""
     ticker = item['ticker']
     clean_code = str(ticker).split('.')[0]
     
-    # === 防线 A: Yahoo Finance (调用 1d 日线) ===
+    # === 防线 A: Yahoo Finance ===
     try:
         yf_ticker = ticker
         if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
@@ -146,7 +141,7 @@ def fetch_yf_data(item):
     except Exception as e:
         print(f"[{ticker}] YF通道异常: {e}")
         
-    # === 防线 B: 东方财富双模容错专线 (本身就是 daily) ===
+    # === 防线 B: 东方财富双模容错专线 ===
     try:
         df = pd.DataFrame()
         if '.HK' in ticker:
@@ -183,7 +178,7 @@ def fetch_yf_data(item):
     except Exception as e:
         print(f"[{ticker}] 东财通道异常: {e}")
 
-    # === 防线 C: 腾讯日线降维兜底 (强制抽取 day 节点) ===
+    # === 防线 C: 腾讯日线兜底 ===
     try:
         target_code = ''
         if '.SS' in ticker: target_code = 'sh' + clean_code
@@ -229,7 +224,6 @@ def fetch_fund_data(item):
         df['净值日期'] = pd.to_datetime(df['净值日期'])
         df.set_index('净值日期', inplace=True)
         df.rename(columns={'单位净值': 'close'}, inplace=True)
-        # 对缺失高低点的基金自动补全
         df['high'] = df['close']
         df['low'] = df['close']
         
@@ -241,7 +235,6 @@ def fetch_fund_data(item):
 def fetch_crypto_data(item):
     try:
         yf_symbol = str(item['ticker']).upper().replace('/USDT', '-USD').replace('/USDC', '-USD')
-        # Crypto 拉取 1 年日线
         data = yf.Ticker(yf_symbol).history(period="1y", interval="1d")
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
@@ -299,14 +292,9 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
         file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.md")
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(f"# 📈 资产网格周报 ({today_str})\n\n" + md)
-        print(f"✅ 报告已本地生成，路径: {file_path}")
+        print(f"✅ 报告已归档，路径: {file_path}")
     except Exception as e:
-        print(f"⚠️ 报告本地归档失败: {e}")
-
-    # ===== 本地测试直显终端 =====
-    print("\n================ 本地测试预览 ================\n")
-    print(md)
-    print("\n==============================================\n")
+        print(f"⚠️ 报告归档失败: {e}")
 
     if not SENDKEY: 
         print("未检测到 SERVERCHAN_KEY 环境变量，跳过推送。")
