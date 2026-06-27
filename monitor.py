@@ -120,7 +120,6 @@ def fetch_yf_data(item):
                 try: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qfq")
                 except Exception: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="")
         else:
-            # 针对 BRK-B 等包含特殊符号的美股，生成变异列表智能匹配
             us_variants = [
                 str(ticker), 
                 str(ticker).replace('-', '.'),
@@ -246,13 +245,15 @@ def fetch_crypto_data(item):
     return None
 
 def build_signal_section(title, asset_list, key, target_val):
+    """重构分类展示逻辑，确保每个标的独占一行，使用列表格式"""
     md = f"### {title}\n"
     matched = [r for r in asset_list if r.get(key) == target_val]
     if matched:
         for r in matched:
-            md += f"> **{r['name']}** ({r['ticker']}) `表现: {r['performance']}`\n"
+            # 引入 Markdown 列表符 '-' 强制换行排版
+            md += f"- **{r['name']}** ({r['ticker']}) `{r['performance']}`\n"
     else:
-        md += "> 无\n"
+        md += "- *无*\n"
     return md + "\n"
 
 def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
@@ -261,6 +262,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
     fund_reps.sort(key=lambda x: x['raw_return'], reverse=True)
     
     md = "## 🎯 核心阵地异动 (仅股/ETF)\n---\n"
+    # 使用新版分行逻辑构建各个子板块
     md += build_signal_section("🚀 突破一年新高", yf_reps, 'extremum_signal', '新高')
     md += build_signal_section("🩸 跌破一年新低", yf_reps, 'extremum_signal', '新低')
     md += build_signal_section("✅ 金叉确立 (5周上穿20周)", yf_reps, 'cross_signal', '金叉')
@@ -281,7 +283,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
         md += "\n"
 
     if failed_list:
-        md += "## ⚠️ 核心盲区公示 (多通道均告破)\n---\n"
+        md += "## ⚠️ 核心盲区公示\n---\n"
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
         for fail in failed_list: md += f"> - **{fail['name']}** ({fail['ticker']})\n"
 
@@ -305,7 +307,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行异动重构与代码变异探测...")
+    print(f"[{start_time}] 引擎点火，执行排版优化重构...")
     
     yf_assets, crypto_assets, fund_assets = load_portfolio()
     yf_reports, crypto_reports, fund_reports = [], [], []
