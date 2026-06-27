@@ -8,7 +8,6 @@ import datetime
 # ================= 核心系统配置 =================
 SENDKEY = os.environ.get('SERVERCHAN_KEY')
 
-# 【绝对路径锁定】动态获取当前脚本所在目录，防止本地运行存错位置
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
 REPORT_DIR = os.path.join(BASE_DIR, 'reports')
@@ -42,7 +41,6 @@ def load_portfolio():
         return [], [], []
 
 def align_to_last_friday(df):
-    """【时间轴强锁核心】降维打击接口错位，手动生成纯净周线"""
     if df is None or df.empty: return None
     try:
         if df.index.tz is not None: df.index = df.index.tz_localize(None)
@@ -80,13 +78,13 @@ def analyze_asset(weekly_df, item, calc_signals=True):
         pw_ma5, pw_ma20 = weekly_df.iloc[-2]['ma5'], weekly_df.iloc[-2]['ma20']
         lw_ma5, lw_ma20 = weekly_df.iloc[-1]['ma5'], weekly_df.iloc[-1]['ma20']
         
-        if pw_ma5 >= pw_ma20 and lw_ma5 < lw_ma20: cross_signal = "⚠️ **死叉离场** (5周下穿20周)"
-        elif pw_ma5 <= pw_ma20 and lw_ma5 > lw_ma20: cross_signal = "✅ **金叉确立** (5周上穿20周)"
+        if pw_ma5 >= pw_ma20 and lw_ma5 < lw_ma20: cross_signal = "死叉"
+        elif pw_ma5 <= pw_ma20 and lw_ma5 > lw_ma20: cross_signal = "金叉"
             
         if len(weekly_df) >= 52:
             past_52_weeks = weekly_df.iloc[-53:-1]
-            if last_week['close'] >= past_52_weeks['high'].max(): extremum_signal = "🚀 **突破一年新高**"
-            elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "🩸 **跌破一年新低**"
+            if last_week['close'] >= past_52_weeks['high'].max(): extremum_signal = "新高"
+            elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "新低"
                 
     return {
         "ticker": item['ticker'], "name": item['name'], "raw_return": weekly_return,
@@ -105,12 +103,11 @@ def fetch_yf_data(item):
         data = yf.Ticker(yf_ticker).history(period="2y", interval="1d")
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
-            if aligned_df is not None:
-                return analyze_asset(aligned_df, item, calc_signals=True)
+            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
     except Exception:
         pass
         
-    # === 防线 B: 东方财富双模容错专线 (新增全量美股接管) ===
+    # === 防线 B: 东方财富双模容错专线 ===
     try:
         df = pd.DataFrame()
         if '.HK' in ticker:
@@ -123,14 +120,21 @@ def fetch_yf_data(item):
                 try: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qfq")
                 except Exception: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="")
         else:
-            # 🎯 针对美股的修复：自动遍历纳斯达克(105), 纽交所(106), 美交所(107)
-            us_symbol = str(ticker).replace('-', '.') # 兼容 BRK-B 写法
-            for prefix in ['105', '106', '107']:
-                try:
-                    df = ak.stock_us_hist(symbol=f"{prefix}.{us_symbol}", period="daily", adjust="qfq")
-                    if df is not None and not df.empty: break
-                except Exception:
-                    df = pd.DataFrame()
+            # 针对 BRK-B 等包含特殊符号的美股，生成变异列表智能匹配
+            us_variants = [
+                str(ticker), 
+                str(ticker).replace('-', '.'),
+                str(ticker).replace('-', '_'),
+                str(ticker).replace('-', '')
+            ]
+            for variant in us_variants:
+                for prefix in ['105', '106', '107']:
+                    try:
+                        df = ak.stock_us_hist(symbol=f"{prefix}.{variant}", period="daily", adjust="qfq")
+                        if df is not None and not df.empty: break
+                    except Exception:
+                        pass
+                if df is not None and not df.empty: break
                 
         if df is not None and not df.empty:
             df.columns = [str(c).strip() for c in df.columns]
@@ -153,35 +157,42 @@ def fetch_yf_data(item):
 
     # === 防线 C: 腾讯日线兜底 ===
     try:
-        target_code = ''
-        if '.SS' in ticker: target_code = 'sh' + clean_code
-        elif '.SZ' in ticker: target_code = 'sz' + clean_code
-        elif '.HK' in ticker: target_code = 'hk' + clean_code
-        else: target_code = 'us' + str(ticker).replace('-', '.')
+        target_codes = []
+        if '.SS' in ticker: target_codes = ['sh' + clean_code]
+        elif '.SZ' in ticker: target_codes = ['sz' + clean_code]
+        elif '.HK' in ticker: target_codes = ['hk' + clean_code]
+        else: 
+            target_codes = [
+                'us' + str(ticker),
+                'us' + str(ticker).replace('-', '.'),
+                'us' + str(ticker).replace('-', '_'),
+                'us' + str(ticker).replace('-', '')
+            ]
             
-        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={target_code},day,,,400,qfq"
-        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
-        if res.status_code == 200:
-            json_data = res.json()
-            if 'data' in json_data and target_code in json_data['data']:
-                stock_data = json_data['data'][target_code]
-                k_data = stock_data.get('fqday', stock_data.get('day', []))
-                
-                if k_data and len(k_data) >= 5:
-                    cleaned_rows = []
-                    for row in k_data:
-                        if len(row) >= 6:
-                            cleaned_rows.append({
-                                'date': row[0], 'open': float(row[1]), 'close': float(row[2]),
-                                'high': float(row[3]), 'low': float(row[4])
-                            })
+        for tc in target_codes:
+            url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+            res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+            if res.status_code == 200:
+                json_data = res.json()
+                if 'data' in json_data and tc in json_data['data']:
+                    stock_data = json_data['data'][tc]
+                    k_data = stock_data.get('fqday', stock_data.get('day', []))
                     
-                    df = pd.DataFrame(cleaned_rows)
-                    df['date'] = pd.to_datetime(df['date'])
-                    df.set_index('date', inplace=True)
-                    
-                    aligned_df = align_to_last_friday(df)
-                    if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+                    if k_data and len(k_data) >= 5:
+                        cleaned_rows = []
+                        for row in k_data:
+                            if len(row) >= 6:
+                                cleaned_rows.append({
+                                    'date': row[0], 'open': float(row[1]), 'close': float(row[2]),
+                                    'high': float(row[3]), 'low': float(row[4])
+                                })
+                        
+                        df = pd.DataFrame(cleaned_rows)
+                        df['date'] = pd.to_datetime(df['date'])
+                        df.set_index('date', inplace=True)
+                        
+                        aligned_df = align_to_last_friday(df)
+                        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
     except Exception:
         pass
 
@@ -204,7 +215,6 @@ def fetch_fund_data(item):
     except: return None
 
 def fetch_crypto_data(item):
-    """🎯 专治加密货币：无缝衔接 Coinbase 机构公开 API，彻底绕开雅虎与云端封锁"""
     ticker = item['ticker']
     try:
         yf_symbol = str(ticker).upper().replace('/USDT', '-USD').replace('/USDC', '-USD')
@@ -216,16 +226,13 @@ def fetch_crypto_data(item):
         pass
 
     try:
-        # 提取币种核心符号 (如 BTC/USDT 提取 BTC)
         base_coin = str(ticker).upper().split('/')[0] 
-        # 直接调用 Coinbase Pro 公开接口，获取每日 K 线 (86400 秒 = 1天)
         url = f"https://api.exchange.coinbase.com/products/{base_coin}-USD/candles?granularity=86400"
         res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
         
         if res.status_code == 200:
             candles = res.json()
             if candles:
-                # Coinbase 返回格式: [ time, low, high, open, close, volume ]
                 df = pd.DataFrame(candles, columns=['time', 'low', 'high', 'open', 'close', 'volume'])
                 df['date'] = pd.to_datetime(df['time'], unit='s')
                 df.set_index('date', inplace=True)
@@ -238,22 +245,26 @@ def fetch_crypto_data(item):
 
     return None
 
+def build_signal_section(title, asset_list, key, target_val):
+    md = f"### {title}\n"
+    matched = [r for r in asset_list if r.get(key) == target_val]
+    if matched:
+        for r in matched:
+            md += f"> **{r['name']}** ({r['ticker']}) `表现: {r['performance']}`\n"
+    else:
+        md += "> 无\n"
+    return md + "\n"
+
 def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
     yf_reps.sort(key=lambda x: x['raw_return'], reverse=True)
     crypto_reps.sort(key=lambda x: x['raw_return'], reverse=True)
     fund_reps.sort(key=lambda x: x['raw_return'], reverse=True)
-
-    focus_pool = [r for r in yf_reps if r['cross_signal'] or r['extremum_signal']]
     
     md = "## 🎯 核心阵地异动 (仅股/ETF)\n---\n"
-    if focus_pool:
-        for r in focus_pool:
-            md += f"> **{r['name']}** ({r['ticker']})\n"
-            md += f"> 表现: {r['performance']}\n"
-            if r['cross_signal']: md += f"> 趋势: {r['cross_signal']}\n"
-            if r['extremum_signal']: md += f"> 位置: {r['extremum_signal']}\n\n"
-    else:
-        md += "> *本周常规池无标的触发均线交叉或极值。*\n\n"
+    md += build_signal_section("🚀 突破一年新高", yf_reps, 'extremum_signal', '新高')
+    md += build_signal_section("🩸 跌破一年新低", yf_reps, 'extremum_signal', '新低')
+    md += build_signal_section("✅ 金叉确立 (5周上穿20周)", yf_reps, 'cross_signal', '金叉')
+    md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", yf_reps, 'cross_signal', '死叉')
 
     md += "## 📊 资产涨跌幅龙虎榜\n---\n"
     if yf_reps:
@@ -294,7 +305,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行时空强制锁定抽取(含美股与Crypto抗封锁补丁)...")
+    print(f"[{start_time}] 引擎点火，执行异动重构与代码变异探测...")
     
     yf_assets, crypto_assets, fund_assets = load_portfolio()
     yf_reports, crypto_reports, fund_reports = [], [], []
