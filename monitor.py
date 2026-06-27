@@ -266,7 +266,7 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
     md += build_signal_section("🚀 突破一年新高", yf_reps, 'extremum_signal', '新高')
     md += build_signal_section("🩸 跌破一年新低", yf_reps, 'extremum_signal', '新低')
     md += build_signal_section("✅ 金叉确立 (5周上穿20周)", yf_reps, 'cross_signal', '金叉')
-    md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", yf_reps, 'cross_signal', '死叉')
+    md += build_signal_section("⚠️ 死叉确立 (5周下穿20周)", yf_reps, 'cross_signal', '死叉')
 
     md += "## 📊 资产涨跌幅龙虎榜\n---\n"
     if yf_reps:
