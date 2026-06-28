@@ -229,25 +229,28 @@ def fetch_crypto_data(item):
     except Exception: pass
     return None
 
-# ================= 🚀 UI 渲染层 =================
+# ================= 🚀 UI 渲染层 (极致降噪版) =================
 
 def build_signal_section(title, asset_list, key, target_val):
-    md = f"#### {title}\n"
+    """强制使用独立无序列表，且代码前置，解决微信压缩问题"""
     matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
-    if matched:
-        for r in matched:
-            md += f"> **{r['name']}** `{r['performance']}`\n"
-    else:
-        md += "> *无*\n"
+    if not matched: 
+        return "" # 无信号时静默折叠
+    
+    md = f"#### {title}\n\n"
+    for r in matched:
+        md += f"- `{r['ticker']}` **{r['name']}** {r['performance']}\n"
     return md + "\n"
 
 def build_leaderboard_table(title, asset_list):
+    """降噪表格：代码前置、去加粗、表现居中"""
     if not asset_list: return ""
+    
     md = f"### {title}\n\n"
-    md += "| 资产名称 | 代码 | 本周表现 |\n"
-    md += "| :--- | :--- | :--- |\n"
+    md += "| 代码 | 资产名称 | 本周表现 |\n"
+    md += "| :--- | :--- | :---: |\n" # 本周表现列居中，视觉更整齐
     for r in asset_list:
-        md += f"| **{r['name']}** | `{r['ticker']}` | {r['performance']} |\n"
+        md += f"| `{r['ticker']}` | {r['name']} | {r['performance']} |\n"
     return md + "\n"
 
 def send_and_archive_report(all_reports, failed_list):
@@ -261,10 +264,14 @@ def send_and_archive_report(all_reports, failed_list):
     
     # ━━━━━━━━━ 顶层 1：核心阵地异动 ━━━━━━━━━
     md += "## 🎯 核心持仓异动\n---\n"
-    md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
-    md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
-    md += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
-    md += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
+    core_signals = ""
+    core_signals += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
+    core_signals += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
+    core_signals += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
+    core_signals += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
+    
+    if core_signals: md += core_signals
+    else: md += "- *本周无异动*\n\n"
     
     # ━━━━━━━━━ 顶层 2：核心资产龙虎榜 ━━━━━━━━━
     md += "## 📊 核心资产龙虎榜\n---\n"
@@ -278,11 +285,15 @@ def send_and_archive_report(all_reports, failed_list):
 
     # ━━━━━━━━━ 底部 1：备选宏观异动与龙虎榜 ━━━━━━━━━
     if watch_pool:
-        md += "## 🔍 备选自选宏观雷达\n---\n"
-        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
-        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
-        md += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
-        md += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
+        md += "## 🔍 备选宏观雷达\n---\n"
+        watch_signals = ""
+        watch_signals += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
+        watch_signals += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
+        watch_signals += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
+        watch_signals += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
+
+        if watch_signals: md += watch_signals
+        else: md += "- *本周无异动*\n\n"
 
         md += "## 📈 备选资产龙虎榜\n---\n"
         yf_watch = [r for r in watch_pool if r['type'] == 'yf']
@@ -297,7 +308,7 @@ def send_and_archive_report(all_reports, failed_list):
     if failed_list:
         md += "## ⚠️ 核心盲区公示\n---\n"
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
-        for fail in failed_list: md += f"> - **{fail['name']}** ({fail['ticker']})\n"
+        for fail in failed_list: md += f"> - `{fail['ticker']}` **{fail['name']}**\n"
 
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
@@ -319,7 +330,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行全谱系排版重构(核心置顶/备选下沉)...")
+    print(f"[{start_time}] 引擎点火，执行界面视觉降噪重构...")
     
     assets_清单 = load_portfolio()
     all_reports = []
