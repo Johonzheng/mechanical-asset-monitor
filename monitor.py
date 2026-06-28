@@ -26,22 +26,23 @@ def load_portfolio():
             
         df.columns = [str(c).strip().lower() for c in df.columns]
         
-        if 'active' in df.columns:
+        # 🎯 变化 1：不再直接剔除 active 为 n 的行，而是保留其属性，传递给下游
+        if 'active' not in df.columns:
+            df['active'] = 'y'
+        else:
             df['active'] = df['active'].fillna('y').str.strip().str.lower()
-            df = df[df['active'] != 'n']
             
         if 'name' not in df.columns:
             df['name'] = df['ticker']
         else:
             df['name'] = df['name'].fillna(df['ticker'])
             
-        # 🎯 升级：保留 pool 的原始多标签字符串，转为小写便于后续探测
         if 'pool' not in df.columns:
             df['pool'] = 'core'
         else:
             df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
             
-        return df[['ticker', 'name', 'type', 'pool']].to_dict('records')
+        return df[['ticker', 'name', 'type', 'pool', 'active']].to_dict('records')
     except Exception as e:
         print(f"清单读取与解析失败: {e}")
         return []
@@ -93,7 +94,8 @@ def analyze_asset(weekly_df, item, calc_signals=True):
             elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "新低"
                 
     return {
-        "ticker": item['ticker'], "name": item['name'], "type": item['type'], "pool": item['pool'],
+        "ticker": item['ticker'], "name": item['name'], "type": item['type'], 
+        "pool": item['pool'], "active": item['active'], # 🎯 变化 2：携带 active 属性
         "raw_return": weekly_return, "performance": perf_str, 
         "cross_signal": cross_signal, "extremum_signal": extremum_signal
     }
@@ -230,7 +232,8 @@ def fetch_crypto_data(item):
 
 def build_signal_section(title, asset_list, key, target_val):
     md = f"### {title}\n"
-    matched = [r for r in asset_list if r.get(key) == target_val]
+    # 🎯 变化 3：构建异动信号时，强制过滤掉 active == 'n' 的标的
+    matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
     if matched:
         for r in matched:
             md += f"- **{r['name']}** ({r['ticker']}) `{r['performance']}`\n"
@@ -239,7 +242,6 @@ def build_signal_section(title, asset_list, key, target_val):
     return md + "\n"
 
 def send_and_archive_report(all_reports, failed_list):
-    # 🎯 升级：使用 in 关键字探测多标签，支持一个资产同时进入多个池子
     core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
     watch_pool = [r for r in all_reports if 'watch' in str(r.get('pool', '')).lower()]
     
@@ -254,7 +256,7 @@ def send_and_archive_report(all_reports, failed_list):
     md += build_signal_section("✅ 金叉确立 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
     md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
     
-    # 如果备选库有标的，才渲染该板块，保持排版整洁
+    # 过滤备选库时也注意，如果整个备选库全是 active=n，可能导致标题出现但内容全无，这里已在 build_signal_section 规避
     if watch_pool:
         md += "## 🔍 备选自选异动监控\n---\n"
         md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
@@ -263,6 +265,7 @@ def send_and_archive_report(all_reports, failed_list):
         md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
 
     md += "## 📊 核心持仓涨跌幅龙虎榜\n---\n"
+    # 🎯 变化 4：生成龙虎榜时，不过滤 active==n 的标的，让它们正常展示涨跌幅
     yf_core = [r for r in core_pool if r['type'] == 'yf']
     jj_core = [r for r in core_pool if r['type'] == 'jj']
     crypto_core = [r for r in core_pool if r['type'] == 'crypto']
@@ -280,6 +283,7 @@ def send_and_archive_report(all_reports, failed_list):
         for r in crypto_core: md += f"- **{r['name']}** `{r['performance']}`\n"
         md += "\n"
 
+    # 如果有标的获取失败，正常展示
     if failed_list:
         md += "## ⚠️ 核心盲区公示\n---\n"
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
