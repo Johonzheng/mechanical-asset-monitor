@@ -16,7 +16,7 @@ REPORT_DIR = os.path.join(BASE_DIR, 'reports')
 def load_portfolio():
     if not os.path.exists(CSV_FILE): 
         print(f"⚠️ 未找到 {CSV_FILE} 文件，系统终止。")
-        return [], [], []
+        return []
     
     try:
         try:
@@ -26,19 +26,25 @@ def load_portfolio():
             
         df.columns = [str(c).strip().lower() for c in df.columns]
         
+        if 'active' in df.columns:
+            df['active'] = df['active'].fillna('y').str.strip().str.lower()
+            df = df[df['active'] != 'n']
+            
         if 'name' not in df.columns:
             df['name'] = df['ticker']
         else:
             df['name'] = df['name'].fillna(df['ticker'])
             
-        yf_assets = df[df['type'].str.strip().str.lower() == 'yf'][['ticker', 'name']].to_dict('records')
-        crypto_assets = df[df['type'].str.strip().str.lower() == 'crypto'][['ticker', 'name']].to_dict('records')
-        fund_assets = df[df['type'].str.strip().str.lower() == 'jj'][['ticker', 'name']].to_dict('records')
-        
-        return yf_assets, crypto_assets, fund_assets
+        # 🎯 升级：保留 pool 的原始多标签字符串，转为小写便于后续探测
+        if 'pool' not in df.columns:
+            df['pool'] = 'core'
+        else:
+            df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
+            
+        return df[['ticker', 'name', 'type', 'pool']].to_dict('records')
     except Exception as e:
         print(f"清单读取与解析失败: {e}")
-        return [], [], []
+        return []
 
 def align_to_last_friday(df):
     if df is None or df.empty: return None
@@ -87,15 +93,15 @@ def analyze_asset(weekly_df, item, calc_signals=True):
             elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "新低"
                 
     return {
-        "ticker": item['ticker'], "name": item['name'], "raw_return": weekly_return,
-        "performance": perf_str, "cross_signal": cross_signal, "extremum_signal": extremum_signal
+        "ticker": item['ticker'], "name": item['name'], "type": item['type'], "pool": item['pool'],
+        "raw_return": weekly_return, "performance": perf_str, 
+        "cross_signal": cross_signal, "extremum_signal": extremum_signal
     }
 
 def fetch_yf_data(item):
     ticker = item['ticker']
     clean_code = str(ticker).split('.')[0]
     
-    # === 防线 A: Yahoo Finance ===
     try:
         yf_ticker = ticker
         if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
@@ -107,7 +113,6 @@ def fetch_yf_data(item):
     except Exception:
         pass
         
-    # === 防线 B: 东方财富双模容错专线 ===
     try:
         df = pd.DataFrame()
         if '.HK' in ticker:
@@ -121,18 +126,15 @@ def fetch_yf_data(item):
                 except Exception: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="")
         else:
             us_variants = [
-                str(ticker), 
-                str(ticker).replace('-', '.'),
-                str(ticker).replace('-', '_'),
-                str(ticker).replace('-', '')
+                str(ticker), str(ticker).replace('-', '.'),
+                str(ticker).replace('-', '_'), str(ticker).replace('-', '')
             ]
             for variant in us_variants:
                 for prefix in ['105', '106', '107']:
                     try:
                         df = ak.stock_us_hist(symbol=f"{prefix}.{variant}", period="daily", adjust="qfq")
                         if df is not None and not df.empty: break
-                    except Exception:
-                        pass
+                    except Exception: pass
                 if df is not None and not df.empty: break
                 
         if df is not None and not df.empty:
@@ -148,13 +150,10 @@ def fetch_yf_data(item):
             if 'close' in df.columns:
                 if 'high' not in df.columns: df['high'] = df['close']
                 if 'low' not in df.columns: df['low'] = df['close']
-                
                 aligned_df = align_to_last_friday(df)
                 if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception:
-        pass
+    except Exception: pass
 
-    # === 防线 C: 腾讯日线兜底 ===
     try:
         target_codes = []
         if '.SS' in ticker: target_codes = ['sh' + clean_code]
@@ -162,12 +161,9 @@ def fetch_yf_data(item):
         elif '.HK' in ticker: target_codes = ['hk' + clean_code]
         else: 
             target_codes = [
-                'us' + str(ticker),
-                'us' + str(ticker).replace('-', '.'),
-                'us' + str(ticker).replace('-', '_'),
-                'us' + str(ticker).replace('-', '')
+                'us' + str(ticker), 'us' + str(ticker).replace('-', '.'),
+                'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')
             ]
-            
         for tc in target_codes:
             url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
             res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
@@ -176,7 +172,6 @@ def fetch_yf_data(item):
                 if 'data' in json_data and tc in json_data['data']:
                     stock_data = json_data['data'][tc]
                     k_data = stock_data.get('fqday', stock_data.get('day', []))
-                    
                     if k_data and len(k_data) >= 5:
                         cleaned_rows = []
                         for row in k_data:
@@ -185,16 +180,12 @@ def fetch_yf_data(item):
                                     'date': row[0], 'open': float(row[1]), 'close': float(row[2]),
                                     'high': float(row[3]), 'low': float(row[4])
                                 })
-                        
                         df = pd.DataFrame(cleaned_rows)
                         df['date'] = pd.to_datetime(df['date'])
                         df.set_index('date', inplace=True)
-                        
                         aligned_df = align_to_last_friday(df)
                         if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception:
-        pass
-
+    except Exception: pass
     return None
 
 def fetch_fund_data(item):
@@ -202,15 +193,13 @@ def fetch_fund_data(item):
         clean_ticker = str(item['ticker']).replace('jj', '').strip()
         df = ak.fund_open_fund_info_em(symbol=clean_ticker, indicator="单位净值走势")
         if df is None or df.empty: return None
-        
         df['净值日期'] = pd.to_datetime(df['净值日期'])
         df.set_index('净值日期', inplace=True)
         df.rename(columns={'单位净值': 'close'}, inplace=True)
         df['high'] = df['close']
         df['low'] = df['close']
-        
         aligned_df = align_to_last_friday(df)
-        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=False)
+        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
     except: return None
 
 def fetch_crypto_data(item):
@@ -220,15 +209,13 @@ def fetch_crypto_data(item):
         data = yf.Ticker(yf_symbol).history(period="1y", interval="1d")
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
-            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=False)
-    except Exception:
-        pass
+            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+    except Exception: pass
 
     try:
         base_coin = str(ticker).upper().split('/')[0] 
         url = f"https://api.exchange.coinbase.com/products/{base_coin}-USD/candles?granularity=86400"
         res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        
         if res.status_code == 200:
             candles = res.json()
             if candles:
@@ -236,50 +223,61 @@ def fetch_crypto_data(item):
                 df['date'] = pd.to_datetime(df['time'], unit='s')
                 df.set_index('date', inplace=True)
                 df = df.sort_index()
-                
                 aligned_df = align_to_last_friday(df)
-                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=False)
-    except Exception:
-        pass
-
+                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+    except Exception: pass
     return None
 
 def build_signal_section(title, asset_list, key, target_val):
-    """重构分类展示逻辑，确保每个标的独占一行，使用列表格式"""
     md = f"### {title}\n"
     matched = [r for r in asset_list if r.get(key) == target_val]
     if matched:
         for r in matched:
-            # 引入 Markdown 列表符 '-' 强制换行排版
             md += f"- **{r['name']}** ({r['ticker']}) `{r['performance']}`\n"
     else:
         md += "- *无*\n"
     return md + "\n"
 
-def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
-    yf_reps.sort(key=lambda x: x['raw_return'], reverse=True)
-    crypto_reps.sort(key=lambda x: x['raw_return'], reverse=True)
-    fund_reps.sort(key=lambda x: x['raw_return'], reverse=True)
+def send_and_archive_report(all_reports, failed_list):
+    # 🎯 升级：使用 in 关键字探测多标签，支持一个资产同时进入多个池子
+    core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
+    watch_pool = [r for r in all_reports if 'watch' in str(r.get('pool', '')).lower()]
     
-    md = "## 🎯 核心阵地异动 (仅股/ETF)\n---\n"
-    # 使用新版分行逻辑构建各个子板块
-    md += build_signal_section("🚀 突破一年新高", yf_reps, 'extremum_signal', '新高')
-    md += build_signal_section("🩸 跌破一年新低", yf_reps, 'extremum_signal', '新低')
-    md += build_signal_section("✅ 金叉确立 (5周上穿20周)", yf_reps, 'cross_signal', '金叉')
-    md += build_signal_section("⚠️ 死叉确立 (5周下穿20周)", yf_reps, 'cross_signal', '死叉')
+    core_pool.sort(key=lambda x: x['raw_return'], reverse=True)
+    watch_pool.sort(key=lambda x: x['raw_return'], reverse=True)
+    
+    md = ""
+    
+    md += "## 🎯 核心持仓异动监控\n---\n"
+    md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
+    md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
+    md += build_signal_section("✅ 金叉确立 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
+    md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
+    
+    # 如果备选库有标的，才渲染该板块，保持排版整洁
+    if watch_pool:
+        md += "## 🔍 备选自选异动监控\n---\n"
+        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
+        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
+        md += build_signal_section("✅ 金叉确立 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
+        md += build_signal_section("⚠️ 死叉离场 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
 
-    md += "## 📊 资产涨跌幅龙虎榜\n---\n"
-    if yf_reps:
+    md += "## 📊 核心持仓涨跌幅龙虎榜\n---\n"
+    yf_core = [r for r in core_pool if r['type'] == 'yf']
+    jj_core = [r for r in core_pool if r['type'] == 'jj']
+    crypto_core = [r for r in core_pool if r['type'] == 'crypto']
+    
+    if yf_core:
         md += "### 🏛️ 股票与场内 ETF\n"
-        for r in yf_reps: md += f"- **{r['name']}** `{r['performance']}`\n"
+        for r in yf_core: md += f"- **{r['name']}** `{r['performance']}`\n"
         md += "\n"
-    if fund_reps:
+    if jj_core:
         md += "### 🏦 场外公募基金\n"
-        for r in fund_reps: md += f"- **{r['name']}** `{r['performance']}`\n"
+        for r in jj_core: md += f"- **{r['name']}** `{r['performance']}`\n"
         md += "\n"
-    if crypto_reps:
+    if crypto_core:
         md += "### 🪙 加密货币\n"
-        for r in crypto_reps: md += f"- **{r['name']}** `{r['performance']}`\n"
+        for r in crypto_core: md += f"- **{r['name']}** `{r['performance']}`\n"
         md += "\n"
 
     if failed_list:
@@ -307,26 +305,22 @@ def send_and_archive_report(yf_reps, crypto_reps, fund_reps, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行排版优化重构...")
+    print(f"[{start_time}] 引擎点火，执行全谱系资产池智能分流统计(支持多标签解析)...")
     
-    yf_assets, crypto_assets, fund_assets = load_portfolio()
-    yf_reports, crypto_reports, fund_reports = [], [], []
+    assets_清单 = load_portfolio()
+    all_reports = []
     failed_assets = [] 
     
-    for item in yf_assets:
-        res = fetch_yf_data(item)
-        if res: yf_reports.append(res)
-        else: failed_assets.append(item)
+    print(f"载入有效监控目标总数: {len(assets_清单)}")
+    
+    for item in assets_清单:
+        res = None
+        if item['type'] == 'yf': res = fetch_yf_data(item)
+        elif item['type'] == 'crypto': res = fetch_crypto_data(item)
+        elif item['type'] == 'jj': res = fetch_fund_data(item)
         
-    for item in crypto_assets:
-        res = fetch_crypto_data(item)
-        if res: crypto_reports.append(res)
-        else: failed_assets.append(item)
-        
-    for item in fund_assets:
-        res = fetch_fund_data(item)
-        if res: fund_reports.append(res)
+        if res: all_reports.append(res)
         else: failed_assets.append(item)
             
-    send_and_archive_report(yf_reports, crypto_reports, fund_reports, failed_assets)
+    send_and_archive_report(all_reports, failed_assets)
     print(f"扫描完毕，总耗时: {(datetime.datetime.now() - start_time).seconds} 秒")
