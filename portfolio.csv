@@ -113,12 +113,12 @@ ETH/USDT,以太坊,crypto,n,core
 000688.SS,科创50参照,yf,y,watch
 399905.SZ,中证500参照,yf,y,watch
 399006.SZ,创业板参照,yf,y,watch
-000852.SS,中证1000参照,yf,y,watch
+512100.SS,中证1000参照,yf,y,watch
 000510.SS,中证A500参照,yf,y,watch
-399300.SZ,沪深300参照,yf,y,watch
-930050.SS,A50指数参照,yf,y,watch
-^IXIC,纳斯达克指数参照,yf,y,watch
-^DJI,道琼斯指数参照,yf,y,watch
+510300.SS,沪深300参照,yf,y,watch
+159601.SZ,A50指数参照,yf,y,watch
+NDAQ,纳斯达克指数参照,yf,y,watch
+DJIA,道琼斯指数参照,yf,y,watch
 512480.SS,半导体ETF（半导体行业参照）,yf,y,watch
 512880.SS,证券ETF（证券行业参照）,yf,y,watch
 159622.SZ,创新药ETF（医疗行业参照）,yf,y,watch
