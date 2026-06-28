@@ -75,7 +75,7 @@ BTC/USDT,比特币,crypto,y,core
 399300.SZ,沪深300参照,yf,y,watch
 TLT,iShares20年美债,yf,n,core
 ```
-*(注：TLT 的 active 为 `n`，它将完全不参与本次计算；沪深 300 仅作为大盘信号参考，不进龙虎榜。)*
+*(注：TLT 的 active 为 `n`，它将完全不参与金叉死叉计算。)*
 
 ---
 
