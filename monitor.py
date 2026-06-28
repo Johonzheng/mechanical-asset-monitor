@@ -229,28 +229,25 @@ def fetch_crypto_data(item):
     except Exception: pass
     return None
 
-# ================= 🚀 UI 渲染层 (极致降噪版) =================
+# ================= 🚀 UI 渲染层 (极简纯净版) =================
 
 def build_signal_section(title, asset_list, key, target_val):
-    """强制使用独立无序列表，且代码前置，解决微信压缩问题"""
-    matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
-    if not matched: 
-        return "" # 无信号时静默折叠
-    
+    """移除代码显示，恢复无信号时的明确提示"""
     md = f"#### {title}\n\n"
-    for r in matched:
-        md += f"- `{r['ticker']}` **{r['name']}** {r['performance']}\n"
+    matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
+    if matched:
+        for r in matched:
+            md += f"- **{r['name']}** {r['performance']}\n"
+    else:
+        md += "> *无*\n"
     return md + "\n"
 
-def build_leaderboard_table(title, asset_list):
-    """降噪表格：代码前置、去加粗、表现居中"""
+def build_leaderboard_list(title, asset_list):
+    """废弃表格，回归清爽列表，彻底移除代码显示"""
     if not asset_list: return ""
-    
     md = f"### {title}\n\n"
-    md += "| 代码 | 资产名称 | 本周表现 |\n"
-    md += "| :--- | :--- | :---: |\n" # 本周表现列居中，视觉更整齐
     for r in asset_list:
-        md += f"| `{r['ticker']}` | {r['name']} | {r['performance']} |\n"
+        md += f"- **{r['name']}** {r['performance']}\n"
     return md + "\n"
 
 def send_and_archive_report(all_reports, failed_list):
@@ -264,14 +261,10 @@ def send_and_archive_report(all_reports, failed_list):
     
     # ━━━━━━━━━ 顶层 1：核心阵地异动 ━━━━━━━━━
     md += "## 🎯 核心持仓异动\n---\n"
-    core_signals = ""
-    core_signals += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
-    core_signals += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
-    core_signals += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
-    core_signals += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
-    
-    if core_signals: md += core_signals
-    else: md += "- *本周无异动*\n\n"
+    md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
+    md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
+    md += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
+    md += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
     
     # ━━━━━━━━━ 顶层 2：核心资产龙虎榜 ━━━━━━━━━
     md += "## 📊 核心资产龙虎榜\n---\n"
@@ -279,36 +272,36 @@ def send_and_archive_report(all_reports, failed_list):
     jj_core = [r for r in core_pool if r['type'] == 'jj']
     crypto_core = [r for r in core_pool if r['type'] == 'crypto']
     
-    md += build_leaderboard_table("🏛️ 股票与场内 ETF", yf_core)
-    md += build_leaderboard_table("🏦 场外公募基金", jj_core)
-    md += build_leaderboard_table("🪙 加密货币", crypto_core)
+    md += build_leaderboard_list("🏛️ 股票与场内 ETF", yf_core)
+    md += build_leaderboard_list("🏦 场外公募基金", jj_core)
+    md += build_leaderboard_list("🪙 加密货币", crypto_core)
 
     # ━━━━━━━━━ 底部 1：备选宏观异动与龙虎榜 ━━━━━━━━━
     if watch_pool:
-        md += "## 🔍 备选宏观雷达\n---\n"
-        watch_signals = ""
-        watch_signals += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
-        watch_signals += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
-        watch_signals += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
-        watch_signals += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
-
-        if watch_signals: md += watch_signals
-        else: md += "- *本周无异动*\n\n"
+        md += "## 🔍 备选自选宏观雷达\n---\n"
+        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
+        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
+        md += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
+        md += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
 
         md += "## 📈 备选资产龙虎榜\n---\n"
         yf_watch = [r for r in watch_pool if r['type'] == 'yf']
         jj_watch = [r for r in watch_pool if r['type'] == 'jj']
         crypto_watch = [r for r in watch_pool if r['type'] == 'crypto']
         
-        md += build_leaderboard_table("🏛️ 股票与场内 ETF", yf_watch)
-        md += build_leaderboard_table("🏦 场外公募基金", jj_watch)
-        md += build_leaderboard_table("🪙 加密货币", crypto_watch)
+        md += build_leaderboard_list("🏛️ 股票与场内 ETF", yf_watch)
+        md += build_leaderboard_list("🏦 场外公募基金", jj_watch)
+        md += build_leaderboard_list("🪙 加密货币", crypto_watch)
 
     # ━━━━━━━━━ 底部 2：故障排查 ━━━━━━━━━
+    md += "## ⚠️ 核心盲区公示\n---\n"
     if failed_list:
-        md += "## ⚠️ 核心盲区公示\n---\n"
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
-        for fail in failed_list: md += f"> - `{fail['ticker']}` **{fail['name']}**\n"
+        for fail in failed_list:
+            md += f"> - **{fail['name']}**\n"
+    else:
+        md += "> *无*\n"
+    md += "\n"
 
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
@@ -330,7 +323,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行界面视觉降噪重构...")
+    print(f"[{start_time}] 引擎点火，执行极简纯净版排版(去代码/去表格)...")
     
     assets_清单 = load_portfolio()
     all_reports = []
