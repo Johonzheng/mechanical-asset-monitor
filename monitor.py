@@ -232,7 +232,6 @@ def fetch_crypto_data(item):
 # ================= 🚀 UI 渲染层 =================
 
 def build_signal_section(title, asset_list, key, target_val):
-    """恢复空载显示机制：即使没有触发，也明确显示“无”，提供扫描确认感"""
     md = f"#### {title}\n"
     matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
     if matched:
@@ -243,9 +242,7 @@ def build_signal_section(title, asset_list, key, target_val):
     return md + "\n"
 
 def build_leaderboard_table(title, asset_list):
-    """表格化引擎：将平铺列表压缩为高密度数据表"""
     if not asset_list: return ""
-    
     md = f"### {title}\n\n"
     md += "| 资产名称 | 代码 | 本周表现 |\n"
     md += "| :--- | :--- | :--- |\n"
@@ -262,22 +259,14 @@ def send_and_archive_report(all_reports, failed_list):
     
     md = ""
     
-    # ━━━━━━━━━ 板块一：核心异动 ━━━━━━━━━
+    # ━━━━━━━━━ 顶层 1：核心阵地异动 ━━━━━━━━━
     md += "## 🎯 核心持仓异动\n---\n"
     md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
     md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
     md += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
     md += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
     
-    # ━━━━━━━━━ 板块二：宏观备选雷达 ━━━━━━━━━
-    if watch_pool:
-        md += "## 🔍 备选宏观雷达\n---\n"
-        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
-        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
-        md += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
-        md += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
-
-    # ━━━━━━━━━ 板块三：核心资产龙虎榜 (表格化) ━━━━━━━━━
+    # ━━━━━━━━━ 顶层 2：核心资产龙虎榜 ━━━━━━━━━
     md += "## 📊 核心资产龙虎榜\n---\n"
     yf_core = [r for r in core_pool if r['type'] == 'yf']
     jj_core = [r for r in core_pool if r['type'] == 'jj']
@@ -287,7 +276,24 @@ def send_and_archive_report(all_reports, failed_list):
     md += build_leaderboard_table("🏦 场外公募基金", jj_core)
     md += build_leaderboard_table("🪙 加密货币", crypto_core)
 
-    # ━━━━━━━━━ 板块四：故障排查 ━━━━━━━━━
+    # ━━━━━━━━━ 底部 1：备选宏观异动与龙虎榜 ━━━━━━━━━
+    if watch_pool:
+        md += "## 🔍 备选自选宏观雷达\n---\n"
+        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
+        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
+        md += build_signal_section("✅ 金叉 (5周上穿20周)", watch_pool, 'cross_signal', '金叉')
+        md += build_signal_section("⚠️ 死叉 (5周下穿20周)", watch_pool, 'cross_signal', '死叉')
+
+        md += "## 📈 备选资产龙虎榜\n---\n"
+        yf_watch = [r for r in watch_pool if r['type'] == 'yf']
+        jj_watch = [r for r in watch_pool if r['type'] == 'jj']
+        crypto_watch = [r for r in watch_pool if r['type'] == 'crypto']
+        
+        md += build_leaderboard_table("🏛️ 股票与场内 ETF", yf_watch)
+        md += build_leaderboard_table("🏦 场外公募基金", jj_watch)
+        md += build_leaderboard_table("🪙 加密货币", crypto_watch)
+
+    # ━━━━━━━━━ 底部 2：故障排查 ━━━━━━━━━
     if failed_list:
         md += "## ⚠️ 核心盲区公示\n---\n"
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
@@ -313,7 +319,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行全谱系排版重构...")
+    print(f"[{start_time}] 引擎点火，执行全谱系排版重构(核心置顶/备选下沉)...")
     
     assets_清单 = load_portfolio()
     all_reports = []
