@@ -115,8 +115,8 @@ ETH/USDT,以太坊,crypto,n,core
 159915.SZ,创业板ETF（参照）,yf,y,watch
 512100.SS,中证1000（参照）,yf,y,watch
 159601.SZ,中证A50ETF（参照）,yf,y,watch
-IXIC,纳斯达克指数参照,yf,y,watch
-DJIA,道琼斯指数参照,yf,y,watch
+QQQM,纳斯达克100（参照）,yf,y,watch
+DJIA,道琼斯指数（参照）,yf,y,watch
 512480.SS,半导体ETF（半导体行业参照）,yf,y,watch
 512880.SS,证券ETF（证券行业参照）,yf,y,watch
 159622.SZ,创新药ETF（医疗行业参照）,yf,y,watch
