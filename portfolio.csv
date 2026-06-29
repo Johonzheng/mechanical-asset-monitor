@@ -3,7 +3,7 @@ ticker,name,type,active,pool
 000895.SZ,双汇发展,yf,y,core
 NVDA,英伟达,yf,y,core
 512690.SS,酒ETF鹏华,yf,y,core
-512050.SS,A500ETF华夏（A500参照）,yf,y,core watch
+512050.SS,A500ETF华夏（参照）,yf,y,core watch
 META,Meta Platforms Inc.,yf,y,core
 005287,海富通创业板综指增强C,jj,n,core
 PG,宝洁,yf,y,core
@@ -49,14 +49,14 @@ ORCL,甲骨文,yf,y,core
 511380.SS,可转债ETF博时,yf,y,core
 006282,摩根欧洲动力策略股票(QDII)A,jj,y,core
 MOAT,VanEck Vectors晨星Wide Moat ETF,yf,y,core
-510300.SS,沪深300ETF华泰柏瑞,yf,n,core
+510300.SS,沪深300ETF华泰柏瑞（参照）,yf,y,core watch
 161005,富国天惠LOF,jj,y,core
 000218,国泰黄金ETF联接A,jj,y,core
 159981.SZ,能源化工ETF建信,yf,y,core
 017641,摩根标普500指数(QDII)A,jj,n,core
 GOOG,谷歌-C,yf,y,core
 002032.SZ,苏泊尔,yf,y,core
-03033.HK,南方恒生科技（恒生科技参照）,yf,n,core watch
+03033.HK,南方恒生科技（参照）,yf,n,core watch
 513500.SS,标普500ETF博时,yf,n,core
 161226,国投瑞银白银期货(LOF)A,jj,y,core
 600031.SS,三一重工,yf,y,core
@@ -110,12 +110,11 @@ SHY,美国国债1-3年ETF-iShares,yf,n,core
 159698.SZ,粮食ETF鹏华,yf,y,core
 BTC/USDT,比特币,crypto,n,core
 ETH/USDT,以太坊,crypto,n,core
-000688.SS,科创50参照,yf,y,watch
-399905.SZ,中证500参照,yf,y,watch
-399006.SZ,创业板参照,yf,y,watch
-512100.SS,中证1000参照,yf,y,watch
-510300.SS,沪深300参照,yf,y,watch
-159601.SZ,A50指数参照,yf,y,watch
+588000.SS,科创50ETF（参照）,yf,y,watch
+510500.SS,中证500ETF（参照）,yf,y,watch
+159915.SZ,创业板ETF（参照）,yf,y,watch
+512100.SS,中证1000（参照）,yf,y,watch
+159601.SZ,中证A50ETF（参照）,yf,y,watch
 NDX,纳斯达克指数参照,yf,y,watch
 DJIA,道琼斯指数参照,yf,y,watch
 512480.SS,半导体ETF（半导体行业参照）,yf,y,watch
