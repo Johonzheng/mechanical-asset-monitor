@@ -3,7 +3,7 @@ ticker,name,type,active,pool
 000895.SZ,双汇发展,yf,y,core
 NVDA,英伟达,yf,y,core
 512690.SS,酒ETF鹏华,yf,y,core
-512050.SS,A500ETF华夏（A500参照）,yf,n,core watch
+512050.SS,A500ETF华夏（A500参照）,yf,y,core watch
 META,Meta Platforms Inc.,yf,y,core
 005287,海富通创业板综指增强C,jj,n,core
 PG,宝洁,yf,y,core
