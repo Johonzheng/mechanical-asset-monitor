@@ -30,7 +30,7 @@ SGOL,ETFS实物瑞士黄金股份,yf,n,core
 501018.SS,南方原油LOF,yf,y,core
 159928.SZ,消费ETF汇添富（消费行业参照）,yf,y,core watch
 159659.SZ,纳斯达克100ETF招商,yf,n,core
-162415.SZ,美国消费LOF,yf,y,core
+162415.SZ,美国消费LOF（参照）,yf,y,core watch
 513850.SS,美国50ETF易方达,yf,n,core
 270042,广发纳斯达克100ETF联接人民币(QDII)A,jj,n,core
 PFF,优先股指数ETF-iShares S&P,yf,n,core
@@ -127,4 +127,3 @@ DJIA,道琼斯指数（参照）,yf,y,watch
 512200.SS,房地产ETF（房地产行业参照）,yf,y,watch
 SLV,白银（参照）,yf,y,watch
 BNO,布伦特原油ETF(参照),yf,y,watch
-XLP,美国消费（参照）,yf,y,watch
