@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 import requests
-import akshare as ak
 import os
 import datetime
 
@@ -89,11 +88,8 @@ def analyze_asset(weekly_df, item, calc_signals=True):
         if pw_ma5 >= pw_ma20 and lw_ma5 < lw_ma20: cross_signal = "死叉"
         elif pw_ma5 <= pw_ma20 and lw_ma5 > lw_ma20: cross_signal = "金叉"
         
-        # 🎯 新增算法：锁定当前 MA5 与 MA20 的绝对位置关系
-        if lw_ma5 >= lw_ma20:
-            ma_trend = "多头"
-        else:
-            ma_trend = "空头"
+        if lw_ma5 >= lw_ma20: ma_trend = "多头"
+        else: ma_trend = "空头"
             
         if len(weekly_df) >= 52:
             past_52_weeks = weekly_df.iloc[-53:-1]
@@ -105,25 +101,19 @@ def analyze_asset(weekly_df, item, calc_signals=True):
         "pool": item['pool'], "active": item['active'],
         "raw_return": weekly_return, "performance": perf_str, 
         "cross_signal": cross_signal, "extremum_signal": extremum_signal,
-        "ma_trend": ma_trend # 输出趋势结果
+        "ma_trend": ma_trend 
     }
 
 def fetch_yf_data(item):
     ticker = item['ticker']
     clean_code = str(ticker).split('.')[0]
     
-    try:
-        yf_ticker = ticker
-        if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
-            yf_ticker = f"{clean_code[1:]}.HK"
-        data = yf.Ticker(yf_ticker).history(period="2y", interval="1d", auto_adjust=True)
-        if len(data) > 0:
-            aligned_df = align_to_last_friday(data)
-            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception:
-        pass
-        
+    # =========================================================================
+    # 🇨🇳 路由 1：A股与国内场内 ETF (带 .SS / .SZ)
+    # 核心纪律：绝对禁止走 Yahoo Finance，防止除权除息数据缺失导致暴涨暴跌假象！
+    # =========================================================================
     if '.SS' in ticker or '.SZ' in ticker:
+        # 首选：东财底层接口 (fqt=1 前复权)
         sec_id = f"1.{clean_code}" if ticker.endswith('.SS') or clean_code.startswith(('5', '6')) else f"0.{clean_code}"
         em_url = f"http://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec_id}&klt=101&fqt=1&end=20500101&lmt=400&fields1=f1,f2,f3&fields2=f51,f53,f54,f55"
         try:
@@ -148,6 +138,7 @@ def fetch_yf_data(item):
         except Exception:
             pass
 
+        # 备选：腾讯兜底 (qfqday 前复权)
         prefix = 'sh' if '.SS' in ticker else 'sz'
         tc = f"{prefix}{clean_code}"
         url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
@@ -157,7 +148,8 @@ def fetch_yf_data(item):
                 json_data = res.json()
                 if 'data' in json_data and tc in json_data['data']:
                     stock_data = json_data['data'][tc]
-                    k_data = stock_data.get('fqday', stock_data.get('day', []))
+                    # 必须获取 qfqday 才是前复权！
+                    k_data = stock_data.get('qfqday', stock_data.get('day', []))
                     if k_data and len(k_data) >= 5:
                         cleaned_rows = []
                         for row in k_data:
@@ -173,8 +165,54 @@ def fetch_yf_data(item):
                         if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
         except Exception:
             pass
+        return None
+
+    # =========================================================================
+    # 🇺🇸 🇭🇰 路由 2：海外资产 (美股/港股)
+    # =========================================================================
+    else:
+        try:
+            yf_ticker = ticker
+            if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
+                yf_ticker = f"{clean_code[1:]}.HK"
+            data = yf.Ticker(yf_ticker).history(period="2y", interval="1d", auto_adjust=True)
+            if len(data) > 0:
+                aligned_df = align_to_last_friday(data)
+                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+        except Exception:
+            pass
             
-    return None
+        try:
+            target_codes = []
+            if '.HK' in ticker: target_codes = ['hk' + clean_code]
+            else: 
+                target_codes = [
+                    'us' + str(ticker), 'us' + str(ticker).replace('-', '.'),
+                    'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')
+                ]
+            for tc in target_codes:
+                url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+                res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+                if res.status_code == 200:
+                    json_data = res.json()
+                    if 'data' in json_data and tc in json_data['data']:
+                        stock_data = json_data['data'][tc]
+                        k_data = stock_data.get('qfqday', stock_data.get('day', []))
+                        if k_data and len(k_data) >= 5:
+                            cleaned_rows = []
+                            for row in k_data:
+                                if len(row) >= 6:
+                                    cleaned_rows.append({
+                                        'date': row[0], 'close': float(row[2]),
+                                        'high': float(row[3]), 'low': float(row[4])
+                                    })
+                            df = pd.DataFrame(cleaned_rows)
+                            df['date'] = pd.to_datetime(df['date'])
+                            df.set_index('date', inplace=True)
+                            aligned_df = align_to_last_friday(df)
+                            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+        except Exception: pass
+        return None
 
 def fetch_fund_data(item):
     clean_ticker = str(item['ticker']).replace('jj', '').strip()
@@ -207,7 +245,7 @@ def fetch_crypto_data(item):
     ticker = item['ticker']
     try:
         yf_symbol = str(ticker).upper().replace('/USDT', '-USD').replace('/USDC', '-USD')
-        data = yf.Ticker(yf_symbol).history(period="1y", interval="1d")
+        data = yf.Ticker(yf_symbol).history(period="1y", interval="1d", auto_adjust=True)
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
             if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
@@ -229,7 +267,7 @@ def fetch_crypto_data(item):
     except Exception: pass
     return None
 
-# ================= 🚀 UI 渲染层 =================
+# ================= 🚀 UI 渲染层 (极简纯净版) =================
 
 def build_signal_section(title, asset_list, key, target_val):
     md = f"#### {title}\n\n"
@@ -274,7 +312,6 @@ def send_and_archive_report(all_reports, failed_list):
     md += build_leaderboard_list("🏦 场外公募基金", jj_core)
     md += build_leaderboard_list("🪙 加密货币", crypto_core)
 
-    # 🌊 新增：核心资产趋势分布
     md += "## 🌊 核心趋势阵营\n---\n"
     md += build_signal_section("📈 5周线在20周线上 (多头排列)", core_pool, 'ma_trend', '多头')
     md += build_signal_section("📉 5周线在20周线下 (空头排列)", core_pool, 'ma_trend', '空头')
@@ -296,7 +333,6 @@ def send_and_archive_report(all_reports, failed_list):
         md += build_leaderboard_list("🏦 场外公募基金", jj_watch)
         md += build_leaderboard_list("🪙 加密货币", crypto_watch)
 
-        # 🌊 新增：备选资产趋势分布
         md += "## 🌊 备选趋势阵营\n---\n"
         md += build_signal_section("📈 5周线在20周线上 (多头排列)", watch_pool, 'ma_trend', '多头')
         md += build_signal_section("📉 5周线在20周线下 (空头排列)", watch_pool, 'ma_trend', '空头')
@@ -331,7 +367,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，计算 MA5/MA20 趋势阵列归属...")
+    print(f"[{start_time}] 引擎点火，执行严格前复权隔离路由机制...")
     
     assets_清单 = load_portfolio()
     all_reports = []
