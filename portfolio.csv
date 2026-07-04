@@ -9,15 +9,15 @@ META,Meta Platforms Inc.,yf,y,core
 PG,宝洁,yf,y,core
 03416.HK,AGX国指兑,yf,y,core
 513330.SS,恒生互联网ETF华夏,yf,y,core
-513050.SS,中概互联网ETF易方达,yf,y,core
+513050.SS,中概互联网ETF易方达（参照）,yf,y,core watch
 012920,易方达全球成长精选混合(QDII)A,jj,y,core
 MSFT,微软,yf,y,core
-TLT,iShares安硕20年期以上美国国债,yf,n,core
+TLT,iShares安硕20年期以上美国国债,yf,n,core watch
 006373,国富全球科技互联混合(QDII)人民币A,jj,y,core
 050025,博时标普500ETF联接A,jj,n,core
 TSM,台积电,yf,y,core
 001668,汇添富全球移动互联混合(QDII)人民币A,jj,y,core
-164824.SZ,印度基金LOF,yf,y,core
+164824.SZ,印度基金LOF（参照）,yf,y,core watch
 007280,摩根日本精选股票(QDII)A,jj,y,core
 006105,宏利印度股票(QDII)A,jj,y,core
 SGOV,Ishares 0-3 Month Treasury Bond Etf,yf,n,core
@@ -26,7 +26,7 @@ SGOV,Ishares 0-3 Month Treasury Bond Etf,yf,n,core
 SGOL,ETFS实物瑞士黄金股份,yf,n,core
 100050,富国全球债券(QDII)人民币A,jj,n,core
 09988.HK,阿里巴巴-W,yf,y,core
-159985.SZ,豆粕ETF华夏,yf,y,core
+159985.SZ,豆粕ETF华夏（参照）,yf,y,core watch
 501018.SS,南方原油LOF,yf,y,core
 159928.SZ,消费ETF汇添富（消费行业参照）,yf,y,core watch
 159659.SZ,纳斯达克100ETF招商,yf,n,core
@@ -63,7 +63,7 @@ GOOG,谷歌-C,yf,y,core
 022453,嘉实中证A500ETF联接A,jj,n,core
 BRK-B,伯克希尔B,yf,y,core
 AAPL,苹果,yf,y,core
-159545.SZ,恒生红利低波ETF易方达,yf,y,core
+159545.SZ,恒生红利低波ETF易方达（参照）,yf,y,core watch
 518850.SS,黄金ETF华夏（黄金参照）,yf,y,core watch
 159792.SZ,港股通互联网ETF富国,yf,y,core
 000215,广发趋势优选灵活配置混合A,jj,y,core
@@ -72,9 +72,9 @@ AAPL,苹果,yf,y,core
 00006.HK,电能实业,yf,y,core
 515220.SS,煤炭ETF国泰（煤炭行业参照）,yf,y,core watch
 000834,大成纳斯达克100ETF联接(QDII)A,jj,n,core
-513030.SS,德国ETF华安,yf,y,core
+513030.SS,德国ETF华安（参照）,yf,y,core watch
 012708,东方红中证东方红红利低波动指数A,jj,y,core
-513080.SS,法国ETF华安,yf,y,core
+513080.SS,法国ETF华安（参照）,yf,y,core watch
 021206,易方达中证A50ETF联接发起式A,jj,n,core
 002272,新华科技创新主题灵活配置混合,jj,y,core
 00700.HK,腾讯控股,yf,y,core
@@ -93,7 +93,7 @@ TSLA,特斯拉,yf,y,core
 110017,易方达增强回报债券A,jj,n,core
 513400.SS,道琼斯ETF鹏华,yf,n,core
 513310.SS,中韩半导体ETF华泰柏瑞,yf,y,core
-513800.SS,日本东证指数ETF南方,yf,y,core
+513800.SS,日本东证指数ETF南方（参照）,yf,y,core watch
 003015,中金沪深300指数增强A,jj,n,core
 SHY,美国国债1-3年ETF-iShares,yf,n,core
 159209.SZ,红利质量ETF招商,yf,y,core
@@ -107,14 +107,15 @@ SHY,美国国债1-3年ETF-iShares,yf,n,core
 018920,东方红中证优势成长指数发起A,jj,y,core
 600887.SS,伊利股份,yf,y,core
 601899.SS,紫金矿业,yf,y,core
-159698.SZ,粮食ETF鹏华,yf,y,core
+159698.SZ,粮食ETF鹏华（参照）,yf,y,core watch
 BTC/USDT,比特币,crypto,n,core
 ETH/USDT,以太坊,crypto,n,core
 588000.SS,科创50ETF（参照）,yf,y,watch
 510500.SS,中证500ETF（参照）,yf,y,watch
 159915.SZ,创业板ETF（参照）,yf,y,watch
-512100.SS,中证1000（参照）,yf,y,watch
+515800.SS,中证800ETF汇添富（参照）,yf,y,watch
 159601.SZ,中证A50ETF（参照）,yf,y,watch
+510100.SS,上证50ETF（参照）,yf,y,watch
 QQQM,纳斯达克100（参照）,yf,y,watch
 DJIA,道琼斯指数（参照）,yf,y,watch
 512480.SS,半导体ETF（半导体行业参照）,yf,y,watch
@@ -124,3 +125,6 @@ DJIA,道琼斯指数（参照）,yf,y,watch
 159326.SZ,电网设备ETF（电网行业参照）,yf,y,watch
 516290.SS,光伏ETF（光伏行业参照）,yf,y,watch
 512200.SS,房地产ETF（房地产行业参照）,yf,y,watch
+SLV,白银（参照）,yf,y,watch
+BNO,布伦特原油ETF(参照),yf,y,watch
+XLP,美国消费（参照）,yf,y,watch
