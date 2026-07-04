@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas as pd
 import requests
+import akshare as ak
 import os
 import datetime
 
@@ -77,7 +78,7 @@ def analyze_asset(weekly_df, item, calc_signals=True):
     elif weekly_return < 0: perf_str = f"{weekly_return:.2f}% 🟢"
     else: perf_str = f"0.00% ⚪"
     
-    cross_signal, extremum_signal = "", ""
+    cross_signal, extremum_signal, ma_trend = "", "", ""
     if calc_signals and len(weekly_df) >= 20:
         weekly_df['ma5'] = weekly_df['close'].rolling(window=5).mean()
         weekly_df['ma20'] = weekly_df['close'].rolling(window=20).mean()
@@ -87,6 +88,12 @@ def analyze_asset(weekly_df, item, calc_signals=True):
         
         if pw_ma5 >= pw_ma20 and lw_ma5 < lw_ma20: cross_signal = "死叉"
         elif pw_ma5 <= pw_ma20 and lw_ma5 > lw_ma20: cross_signal = "金叉"
+        
+        # 🎯 新增算法：锁定当前 MA5 与 MA20 的绝对位置关系
+        if lw_ma5 >= lw_ma20:
+            ma_trend = "多头"
+        else:
+            ma_trend = "空头"
             
         if len(weekly_df) >= 52:
             past_52_weeks = weekly_df.iloc[-53:-1]
@@ -97,14 +104,14 @@ def analyze_asset(weekly_df, item, calc_signals=True):
         "ticker": item['ticker'], "name": item['name'], "type": item['type'], 
         "pool": item['pool'], "active": item['active'],
         "raw_return": weekly_return, "performance": perf_str, 
-        "cross_signal": cross_signal, "extremum_signal": extremum_signal
+        "cross_signal": cross_signal, "extremum_signal": extremum_signal,
+        "ma_trend": ma_trend # 输出趋势结果
     }
 
 def fetch_yf_data(item):
     ticker = item['ticker']
     clean_code = str(ticker).split('.')[0]
     
-    # === 防线 A: 优先使用 YFinance 获取海外资产 (天然前复权) ===
     try:
         yf_ticker = ticker
         if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
@@ -116,9 +123,7 @@ def fetch_yf_data(item):
     except Exception:
         pass
         
-    # === 防线 B: 国内底层直连网络 (完美前复权) ===
     if '.SS' in ticker or '.SZ' in ticker:
-        # 路由 1: 东方财富 API (用于个股与 ETF，获取高低收)
         sec_id = f"1.{clean_code}" if ticker.endswith('.SS') or clean_code.startswith(('5', '6')) else f"0.{clean_code}"
         em_url = f"http://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec_id}&klt=101&fqt=1&end=20500101&lmt=400&fields1=f1,f2,f3&fields2=f51,f53,f54,f55"
         try:
@@ -143,7 +148,6 @@ def fetch_yf_data(item):
         except Exception:
             pass
 
-        # 路由 2: 腾讯底层 API (用于纯指数或东财备用)
         prefix = 'sh' if '.SS' in ticker else 'sz'
         tc = f"{prefix}{clean_code}"
         url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
@@ -173,7 +177,6 @@ def fetch_yf_data(item):
     return None
 
 def fetch_fund_data(item):
-    # 场外公募基金：直通天天基金底层
     clean_ticker = str(item['ticker']).replace('jj', '').strip()
     em_url = f"http://fund.eastmoney.com/pingzhongdata/{clean_ticker}.js"
     try:
@@ -254,14 +257,14 @@ def send_and_archive_report(all_reports, failed_list):
     
     md = ""
     
-    # ━━━━━━━━━ 顶层 1：核心阵地异动 ━━━━━━━━━
+    # ━━━━━━━━━ 顶层：核心持仓异动 ━━━━━━━━━
     md += "## 🎯 核心持仓异动\n---\n"
     md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
     md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
     md += build_signal_section("✅ 金叉 (5周上穿20周)", core_pool, 'cross_signal', '金叉')
     md += build_signal_section("⚠️ 死叉 (5周下穿20周)", core_pool, 'cross_signal', '死叉')
     
-    # ━━━━━━━━━ 顶层 2：核心资产龙虎榜 ━━━━━━━━━
+    # ━━━━━━━━━ 中层：核心龙虎榜与趋势阵营 ━━━━━━━━━
     md += "## 📊 核心资产龙虎榜\n---\n"
     yf_core = [r for r in core_pool if r['type'] == 'yf']
     jj_core = [r for r in core_pool if r['type'] == 'jj']
@@ -271,7 +274,12 @@ def send_and_archive_report(all_reports, failed_list):
     md += build_leaderboard_list("🏦 场外公募基金", jj_core)
     md += build_leaderboard_list("🪙 加密货币", crypto_core)
 
-    # ━━━━━━━━━ 底部 1：备选宏观异动与龙虎榜 ━━━━━━━━━
+    # 🌊 新增：核心资产趋势分布
+    md += "## 🌊 核心趋势阵营\n---\n"
+    md += build_signal_section("📈 5周线在20周线上 (多头排列)", core_pool, 'ma_trend', '多头')
+    md += build_signal_section("📉 5周线在20周线下 (空头排列)", core_pool, 'ma_trend', '空头')
+
+    # ━━━━━━━━━ 底部：备选宏观异动、龙虎榜与趋势阵营 ━━━━━━━━━
     if watch_pool:
         md += "## 🔍 备选自选宏观雷达\n---\n"
         md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
@@ -288,7 +296,12 @@ def send_and_archive_report(all_reports, failed_list):
         md += build_leaderboard_list("🏦 场外公募基金", jj_watch)
         md += build_leaderboard_list("🪙 加密货币", crypto_watch)
 
-    # ━━━━━━━━━ 底部 2：故障排查 ━━━━━━━━━
+        # 🌊 新增：备选资产趋势分布
+        md += "## 🌊 备选趋势阵营\n---\n"
+        md += build_signal_section("📈 5周线在20周线上 (多头排列)", watch_pool, 'ma_trend', '多头')
+        md += build_signal_section("📉 5周线在20周线下 (空头排列)", watch_pool, 'ma_trend', '空头')
+
+    # ━━━━━━━━━ 最终：故障排查 ━━━━━━━━━
     md += "## ⚠️ 核心盲区公示\n---\n"
     if failed_list:
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
@@ -318,7 +331,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行原生底层接口并网直连...")
+    print(f"[{start_time}] 引擎点火，计算 MA5/MA20 趋势阵列归属...")
     
     assets_清单 = load_portfolio()
     all_reports = []
