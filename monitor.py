@@ -1,7 +1,6 @@
 import yfinance as yf
 import pandas as pd
 import requests
-import akshare as ak
 import os
 import datetime
 
@@ -49,6 +48,8 @@ def load_portfolio():
 def align_to_last_friday(df):
     if df is None or df.empty: return None
     try:
+        df.columns = [str(c).strip().lower() for c in df.columns]
+        
         if df.index.tz is not None: df.index = df.index.tz_localize(None)
         today = pd.Timestamp.today().normalize()
         days_since_friday = (today.dayofweek - 4) % 7
@@ -103,70 +104,50 @@ def fetch_yf_data(item):
     ticker = item['ticker']
     clean_code = str(ticker).split('.')[0]
     
+    # === 防线 A: 优先使用 YFinance 获取海外资产 (天然前复权) ===
     try:
         yf_ticker = ticker
         if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
             yf_ticker = f"{clean_code[1:]}.HK"
-        data = yf.Ticker(yf_ticker).history(period="2y", interval="1d")
+        data = yf.Ticker(yf_ticker).history(period="2y", interval="1d", auto_adjust=True)
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
             if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
     except Exception:
         pass
         
-    try:
-        df = pd.DataFrame()
-        if '.HK' in ticker:
-            df = ak.stock_hk_hist(symbol=clean_code, period="daily", adjust="qfq")
-        elif '.SS' in ticker or '.SZ' in ticker:
-            if clean_code.startswith(('15', '16', '18', '50', '51', '56', '58')):
-                try: df = ak.fund_etf_hist_em(symbol=clean_code, period="daily", adjust="qfq")
-                except Exception: df = ak.fund_etf_hist_em(symbol=clean_code, period="daily", adjust="")
-            else:
-                try: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="qfq")
-                except Exception: df = ak.stock_zh_a_hist(symbol=clean_code, period="daily", adjust="")
-        else:
-            us_variants = [
-                str(ticker), str(ticker).replace('-', '.'),
-                str(ticker).replace('-', '_'), str(ticker).replace('-', '')
-            ]
-            for variant in us_variants:
-                for prefix in ['105', '106', '107']:
-                    try:
-                        df = ak.stock_us_hist(symbol=f"{prefix}.{variant}", period="daily", adjust="qfq")
-                        if df is not None and not df.empty: break
-                    except Exception: pass
-                if df is not None and not df.empty: break
-                
-        if df is not None and not df.empty:
-            df.columns = [str(c).strip() for c in df.columns]
-            rename_dict = {'日期': 'date', '开盘': 'open', '收盘': 'close', '最高': 'high', '最低': 'low'}
-            df.rename(columns=rename_dict, inplace=True)
-            
-            if 'date' in df.columns:
-                df['date'] = pd.to_datetime(df['date'])
-                df.set_index('date', inplace=True)
-                
-            df.columns = [str(c).lower() for c in df.columns]
-            if 'close' in df.columns:
-                if 'high' not in df.columns: df['high'] = df['close']
-                if 'low' not in df.columns: df['low'] = df['close']
-                aligned_df = align_to_last_friday(df)
-                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception: pass
+    # === 防线 B: 国内底层直连网络 (完美前复权) ===
+    if '.SS' in ticker or '.SZ' in ticker:
+        # 路由 1: 东方财富 API (用于个股与 ETF，获取高低收)
+        sec_id = f"1.{clean_code}" if ticker.endswith('.SS') or clean_code.startswith(('5', '6')) else f"0.{clean_code}"
+        em_url = f"http://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec_id}&klt=101&fqt=1&end=20500101&lmt=400&fields1=f1,f2,f3&fields2=f51,f53,f54,f55"
+        try:
+            res = requests.get(em_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+            if res.status_code == 200:
+                json_data = res.json()
+                if json_data.get('data') and json_data['data'].get('klines'):
+                    klines = json_data['data']['klines']
+                    if len(klines) >= 5:
+                        cleaned_rows = []
+                        for k in klines:
+                            parts = k.split(',')
+                            cleaned_rows.append({
+                                'date': parts[0], 'close': float(parts[1]), 
+                                'high': float(parts[2]), 'low': float(parts[3])
+                            })
+                        df = pd.DataFrame(cleaned_rows)
+                        df['date'] = pd.to_datetime(df['date'])
+                        df.set_index('date', inplace=True)
+                        aligned_df = align_to_last_friday(df)
+                        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+        except Exception:
+            pass
 
-    try:
-        target_codes = []
-        if '.SS' in ticker: target_codes = ['sh' + clean_code]
-        elif '.SZ' in ticker: target_codes = ['sz' + clean_code]
-        elif '.HK' in ticker: target_codes = ['hk' + clean_code]
-        else: 
-            target_codes = [
-                'us' + str(ticker), 'us' + str(ticker).replace('-', '.'),
-                'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')
-            ]
-        for tc in target_codes:
-            url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+        # 路由 2: 腾讯底层 API (用于纯指数或东财备用)
+        prefix = 'sh' if '.SS' in ticker else 'sz'
+        tc = f"{prefix}{clean_code}"
+        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+        try:
             res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
             if res.status_code == 200:
                 json_data = res.json()
@@ -178,7 +159,7 @@ def fetch_yf_data(item):
                         for row in k_data:
                             if len(row) >= 6:
                                 cleaned_rows.append({
-                                    'date': row[0], 'open': float(row[1]), 'close': float(row[2]),
+                                    'date': row[0], 'close': float(row[2]),
                                     'high': float(row[3]), 'low': float(row[4])
                                 })
                         df = pd.DataFrame(cleaned_rows)
@@ -186,22 +167,38 @@ def fetch_yf_data(item):
                         df.set_index('date', inplace=True)
                         aligned_df = align_to_last_friday(df)
                         if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception: pass
+        except Exception:
+            pass
+            
     return None
 
 def fetch_fund_data(item):
+    # 场外公募基金：直通天天基金底层
+    clean_ticker = str(item['ticker']).replace('jj', '').strip()
+    em_url = f"http://fund.eastmoney.com/pingzhongdata/{clean_ticker}.js"
     try:
-        clean_ticker = str(item['ticker']).replace('jj', '').strip()
-        df = ak.fund_open_fund_info_em(symbol=clean_ticker, indicator="单位净值走势")
-        if df is None or df.empty: return None
-        df['净值日期'] = pd.to_datetime(df['净值日期'])
-        df.set_index('净值日期', inplace=True)
-        df.rename(columns={'单位净值': 'close'}, inplace=True)
-        df['high'] = df['close']
-        df['low'] = df['close']
-        aligned_df = align_to_last_friday(df)
-        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except: return None
+        res = requests.get(em_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
+        if res.status_code == 200:
+            content = res.text
+            start_idx = content.find('Data_netWorthTrend = ') + len('Data_netWorthTrend = ')
+            end_idx = content.find(';', start_idx)
+            import json
+            data = json.loads(content[start_idx:end_idx])
+            
+            cleaned_rows = []
+            for entry in data:
+                import time
+                date_str = time.strftime('%Y-%m-%d', time.localtime(entry['x']/1000))
+                cleaned_rows.append({'date': date_str, 'close': float(entry['y']), 'high': float(entry['y']), 'low': float(entry['y'])})
+            
+            df = pd.DataFrame(cleaned_rows)
+            df['date'] = pd.to_datetime(df['date'])
+            df.set_index('date', inplace=True)
+            aligned_df = align_to_last_friday(df)
+            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
+    except Exception:
+        pass
+    return None
 
 def fetch_crypto_data(item):
     ticker = item['ticker']
@@ -229,10 +226,9 @@ def fetch_crypto_data(item):
     except Exception: pass
     return None
 
-# ================= 🚀 UI 渲染层 (极简纯净版) =================
+# ================= 🚀 UI 渲染层 =================
 
 def build_signal_section(title, asset_list, key, target_val):
-    """移除代码显示，恢复无信号时的明确提示"""
     md = f"#### {title}\n\n"
     matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
     if matched:
@@ -243,7 +239,6 @@ def build_signal_section(title, asset_list, key, target_val):
     return md + "\n"
 
 def build_leaderboard_list(title, asset_list):
-    """废弃表格，回归清爽列表，彻底移除代码显示"""
     if not asset_list: return ""
     md = f"### {title}\n\n"
     for r in asset_list:
@@ -323,7 +318,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行极简纯净版排版(去代码/去表格)...")
+    print(f"[{start_time}] 引擎点火，执行原生底层接口并网直连...")
     
     assets_清单 = load_portfolio()
     all_reports = []
