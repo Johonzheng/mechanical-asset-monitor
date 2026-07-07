@@ -1,127 +1,127 @@
-ticker,name,type,pool
-600900.SS,长江电力,yf,core
-000895.SZ,双汇发展,yf,core
-NVDA,英伟达,yf,core
-512690.SS,酒ETF鹏华,yf,core
-512050.SS,A500ETF华夏（参照）,yf,core watch
-META,Meta Platforms Inc.,yf,core
-005287,海富通创业板综指增强C,jj,core
-PG,宝洁,yf,core
-03416.HK,AGX国指兑,yf,core
-513330.SS,恒生互联网ETF华夏,yf,core
-513050.SS,中概互联网ETF易方达（参照）,yf,core watch
-012920,易方达全球成长精选混合(QDII)A,jj,core
-MSFT,微软,yf,core
-TLT,iShares安硕20年期以上美国国债,yf,core watch
-006373,国富全球科技互联混合(QDII)人民币A,jj,core
-050025,博时标普500ETF联接A,jj,core
-TSM,台积电,yf,core
-001668,汇添富全球移动互联混合(QDII)人民币A,jj,core
-164824.SZ,印度基金LOF（参照）,yf,core watch
-007280,摩根日本精选股票(QDII)A,jj,core
-006105,宏利印度股票(QDII)A,jj,core
-SGOV,Ishares 0-3 Month Treasury Bond Etf,yf,core
-002175,博时裕乾纯债债券A,jj,core
-003547,鹏华丰禄债券,jj,core
-SGOL,ETFS实物瑞士黄金股份,yf,core
-100050,富国全球债券(QDII)人民币A,jj,core
-09988.HK,阿里巴巴-W,yf,core
-159985.SZ,豆粕ETF华夏（参照）,yf,core watch
-501018.SS,南方原油LOF,yf,core
-159928.SZ,消费ETF汇添富（消费行业参照）,yf,core watch
-159659.SZ,纳斯达克100ETF招商,yf,core
-162415.SZ,美国消费LOF（参照）,yf,core watch
-513850.SS,美国50ETF易方达,yf,core
-270042,广发纳斯达克100ETF联接人民币(QDII)A,jj,core
-PFF,优先股指数ETF-iShares S&P,yf,core
-KO,可口可乐,yf,core
-162411.SZ,华宝油气LOF,yf,core
-513970.SS,恒生消费ETF景顺,yf,core
-513520.SS,日经ETF华夏（日经225参照）,yf,core watch
-159920.SZ,恒生ETF华夏（恒生指数参照）,yf,core watch
-00388.HK,香港交易所,yf,core
-513730.SS,东南亚科技ETF华泰柏瑞,yf,core
-ORCL,甲骨文,yf,core
-00001.HK,长和,yf,core
-513300.SS,纳斯达克ETF华夏,yf,core
-00005.HK,汇丰控股,yf,core
-161125,易方达标普500指数(QDII-LOF)A(人民币份额),jj,core
-511380.SS,可转债ETF博时,yf,core
-006282,摩根欧洲动力策略股票(QDII)A,jj,core
-MOAT,VanEck Vectors晨星Wide Moat ETF,yf,core
-510300.SS,沪深300ETF华泰柏瑞（参照）,yf,core watch
-161005,富国天惠LOF,jj,core
-000218,国泰黄金ETF联接A,jj,core
-159981.SZ,能源化工ETF建信,yf,core
-017641,摩根标普500指数(QDII)A,jj,core
-GOOG,谷歌-C,yf,core
-002032.SZ,苏泊尔,yf,core
-03033.HK,南方恒生科技（参照）,yf,core watch
-513500.SS,标普500ETF博时,yf,core
-161226,国投瑞银白银期货(LOF)A,jj,core
-600031.SS,三一重工,yf,core
-022453,嘉实中证A500ETF联接A,jj,core
-BRK-B,伯克希尔B,yf,core
-AAPL,苹果,yf,core
-159545.SZ,恒生红利低波ETF易方达（参照）,yf,core watch
-518850.SS,黄金ETF华夏（黄金参照）,yf,core watch
-159792.SZ,港股通互联网ETF富国,yf,core
-000215,广发趋势优选灵活配置混合A,jj,core
-006195,国金量化多因子股票A,jj,core
-001044,嘉实新消费股票A,jj,core
-00006.HK,电能实业,yf,core
-515220.SS,煤炭ETF国泰（煤炭行业参照）,yf,core watch
-000834,大成纳斯达克100ETF联接(QDII)A,jj,core
-513030.SS,德国ETF华安（参照）,yf,core watch
-012708,东方红中证东方红红利低波动指数A,jj,core
-513080.SS,法国ETF华安（参照）,yf,core watch
-021206,易方达中证A50ETF联接发起式A,jj,core
-002272,新华科技创新主题灵活配置混合,jj,core
-00700.HK,腾讯控股,yf,core
-021457,易方达恒生红利低波ETF联接A,jj,core
-563020.SS,红利低波ETF易方达,yf,core
-VOO,标普500ETF-Vanguard（标普500指数参照）,yf,core watch
-161725,招商中证白酒指数A,jj,core
-012348,天弘恒生科技ETF联接A,jj,core
-159870.SZ,化工ETF鹏华（化工行业参照）,yf,core watch
-163411,兴全精选混合基金,jj,core
-159980.SZ,有色ETF大成（有色行业参照）,yf,core watch
-012380,创金合信港股互联网3个月持有期混合(QDII)C,jj,core
-001410,信澳新能源产业股票A,jj,core
-JPM,摩根大通,yf,core
-TSLA,特斯拉,yf,core
-110017,易方达增强回报债券A,jj,core
-513400.SS,道琼斯ETF鹏华,yf,core
-513310.SS,中韩半导体ETF华泰柏瑞,yf,core
-513800.SS,日本东证指数ETF南方（参照）,yf,core watch
-003015,中金沪深300指数增强A,jj,core
-SHY,美国国债1-3年ETF-iShares,yf,core
-159209.SZ,红利质量ETF招商,yf,core
-515080.SS,中证红利ETF招商（中证红利指数参照）,yf,core watch
-160719,嘉实黄金LOF,jj,core
-159770.SZ,机器人ETF天弘（机器人行业参照）,yf,watch
-501060,中金中证优选300指数(LOF)A,jj,core
-023917,华夏国证自由现金流ETF发起式联接A,jj,core
-007431,浙商之江凤凰联接A,jj,core
-018920,东方红中证优势成长指数发起A,jj,core
-600887.SS,伊利股份,yf,core
-601899.SS,紫金矿业,yf,core
-159698.SZ,粮食ETF鹏华（参照）,yf,core watch
-BTC/USDT,比特币,crypto,core
-ETH/USDT,以太坊,crypto,core
-588080.SS,科创50ETF（参照）,yf,watch
-159922.SZ,中证500ETF嘉实（参照）,yf,core watch
-159915.SZ,创业板ETF（参照）,yf,watch
-515800.SS,中证800ETF汇添富（参照）,yf,watch
-159592.SZ,中证A50ETF银华（参照）,yf,watch
-510050.SS,上证50ETF华夏（参照）,yf,core watch
-QQQM,纳斯达克100（参照）,yf,watch
-DJIA,道琼斯指数（参照）,yf,watch
-512480.SS,半导体ETF（半导体行业参照）,yf,watch
-512880.SS,证券ETF（证券行业参照）,yf,watch
-159992.SZ,创新药ETF（医疗行业参照）,yf,watch
-516270.SS,新能源ETF（新能源行业参照）,yf,watch
-159326.SZ,电网设备ETF（电网行业参照）,yf,watch
-512200.SS,房地产ETF（房地产行业参照）,yf,watch
-SLV,白银（参照）,yf,watch
-BNO,布伦特原油ETF(参照),yf,watch
+ticker,name,type,pool,market
+600900.SS,长江电力,yf,core,A股
+000895.SZ,双汇发展,yf,core,A股
+NVDA,英伟达,yf,core,美股
+512690.SS,酒ETF鹏华,yf,core,A股
+512050.SS,A500ETF华夏（参照）,yf,core watch,A股
+META,Meta Platforms Inc.,yf,core,美股
+005287,海富通创业板综指增强C,jj,core,A股
+PG,宝洁,yf,core,美股
+03416.HK,AGX国指兑,yf,core,港股
+513330.SS,恒生互联网ETF华夏,yf,core,港股
+513050.SS,中概互联网ETF易方达（参照）,yf,core watch,港股
+012920,易方达全球成长精选混合(QDII)A,jj,core,其他海外市场
+MSFT,微软,yf,core,美股
+TLT,iShares安硕20年期以上美国国债,yf,core watch,国内外债券
+006373,国富全球科技互联混合(QDII)人民币A,jj,core,其他海外市场
+050025,博时标普500ETF联接A,jj,core,美股
+TSM,台积电,yf,core,美股
+001668,汇添富全球移动互联混合(QDII)人民币A,jj,core,其他海外市场
+164824.SZ,印度基金LOF（参照）,yf,core watch,其他海外市场
+007280,摩根日本精选股票(QDII)A,jj,core,其他海外市场
+006105,宏利印度股票(QDII)A,jj,core,其他海外市场
+SGOV,Ishares 0-3 Month Treasury Bond Etf,yf,core,国内外债券
+002175,博时裕乾纯债债券A,jj,core,国内外债券
+003547,鹏华丰禄债券,jj,core,国内外债券
+SGOL,ETFS实物瑞士黄金股份,yf,core,大宗商品及贵金属
+100050,富国全球债券(QDII)人民币A,jj,core,国内外债券
+09988.HK,阿里巴巴-W,yf,core,港股
+159985.SZ,豆粕ETF华夏（参照）,yf,core watch,大宗商品及贵金属
+501018.SS,南方原油LOF,yf,core,大宗商品及贵金属
+159928.SZ,消费ETF汇添富（消费行业参照）,yf,core watch,A股
+159659.SZ,纳斯达克100ETF招商,yf,core,美股
+162415.SZ,美国消费LOF（参照）,yf,core watch,美股
+513850.SS,美国50ETF易方达,yf,core,美股
+270042,广发纳斯达克100ETF联接人民币(QDII)A,jj,core,美股
+PFF,优先股指数ETF-iShares S&P,yf,core,国内外债券
+KO,可口可乐,yf,core,美股
+162411.SZ,华宝油气LOF,yf,core,大宗商品及贵金属
+513970.SS,恒生消费ETF景顺,yf,core,港股
+513520.SS,日经ETF华夏（日经225参照）,yf,core watch,其他海外市场
+159920.SZ,恒生ETF华夏（恒生指数参照）,yf,core watch,港股
+00388.HK,香港交易所,yf,core,港股
+513730.SS,东南亚科技ETF华泰柏瑞,yf,core,其他海外市场
+ORCL,甲骨文,yf,core,美股
+00001.HK,长和,yf,core,港股
+513300.SS,纳斯达克ETF华夏,yf,core,美股
+00005.HK,汇丰控股,yf,core,港股
+161125,易方达标普500指数(QDII-LOF)A(人民币份额),jj,core,美股
+511380.SS,可转债ETF博时,yf,core,国内外债券
+006282,摩根欧洲动力策略股票(QDII)A,jj,core,其他海外市场
+MOAT,VanEck Vectors晨星Wide Moat ETF,yf,core,美股
+510300.SS,沪深300ETF华泰柏瑞（参照）,yf,core watch,A股
+161005,富国天惠LOF,jj,core,A股
+000218,国泰黄金ETF联接A,jj,core,大宗商品及贵金属
+159981.SZ,能源化工ETF建信,yf,core,大宗商品及贵金属
+017641,摩根标普500指数(QDII)A,jj,core,美股
+GOOG,谷歌-C,yf,core,美股
+002032.SZ,苏泊尔,yf,core,A股
+03033.HK,南方恒生科技（参照）,yf,core watch,港股
+513500.SS,标普500ETF博时,yf,core,美股
+161226,国投瑞银白银期货(LOF)A,jj,core,大宗商品及贵金属
+600031.SS,三一重工,yf,core,A股
+022453,嘉实中证A500ETF联接A,jj,core,A股
+BRK-B,伯克希尔B,yf,core,美股
+AAPL,苹果,yf,core,美股
+159545.SZ,恒生红利低波ETF易方达（参照）,yf,core watch,港股
+518850.SS,黄金ETF华夏（黄金参照）,yf,core watch,大宗商品及贵金属
+159792.SZ,港股通互联网ETF富国,yf,core,港股
+000215,广发趋势优选灵活配置混合A,jj,core,A股
+006195,国金量化多因子股票A,jj,core,A股
+001044,嘉实新消费股票A,jj,core,A股
+00006.HK,电能实业,yf,core,港股
+515220.SS,煤炭ETF国泰（煤炭行业参照）,yf,core watch,A股
+000834,大成纳斯达克100ETF联接(QDII)A,jj,core,美股
+513030.SS,德国ETF华安（参照）,yf,core watch,其他海外市场
+012708,东方红中证东方红红利低波动指数A,jj,core,A股
+513080.SS,法国ETF华安（参照）,yf,core watch,其他海外市场
+021206,易方达中证A50ETF联接发起式A,jj,core,A股
+002272,新华科技创新主题灵活配置混合,jj,core,A股
+00700.HK,腾讯控股,yf,core,港股
+021457,易方达恒生红利低波ETF联接A,jj,core,港股
+563020.SS,红利低波ETF易方达,yf,core,A股
+VOO,标普500ETF-Vanguard（标普500指数参照）,yf,core watch,美股
+161725,招商中证白酒指数A,jj,core,A股
+012348,天弘恒生科技ETF联接A,jj,core,港股
+159870.SZ,化工ETF鹏华（化工行业参照）,yf,core watch,A股
+163411,兴全精选混合基金,jj,core,A股
+159980.SZ,有色ETF大成（有色行业参照）,yf,core watch,A股
+012380,创金合信港股互联网3个月持有期混合(QDII)C,jj,core,港股
+001410,信澳新能源产业股票A,jj,core,A股
+JPM,摩根大通,yf,core,美股
+TSLA,特斯拉,yf,core,美股
+110017,易方达增强回报债券A,jj,core,国内外债券
+513400.SS,道琼斯ETF鹏华,yf,core,美股
+513310.SS,中韩半导体ETF华泰柏瑞,yf,core,其他海外市场
+513800.SS,日本东证指数ETF南方（参照）,yf,core watch,其他海外市场
+003015,中金沪深300指数增强A,jj,core,A股
+SHY,美国国债1-3年ETF-iShares,yf,core,国内外债券
+159209.SZ,红利质量ETF招商,yf,core,A股
+515080.SS,中证红利ETF招商（中证红利指数参照）,yf,core watch,A股
+160719,嘉实黄金LOF,jj,core,大宗商品及贵金属
+159770.SZ,机器人ETF天弘（机器人行业参照）,yf,watch,A股
+501060,中金中证优选300指数(LOF)A,jj,core,A股
+023917,华夏国证自由现金流ETF发起式联接A,jj,core,A股
+007431,浙商之江凤凰联接A,jj,core,A股
+018920,东方红中证优势成长指数发起A,jj,core,A股
+600887.SS,伊利股份,yf,core,A股
+601899.SS,紫金矿业,yf,core,A股
+159698.SZ,粮食ETF鹏华（参照）,yf,core watch,A股
+BTC/USDT,比特币,crypto,core,加密货币
+ETH/USDT,以太坊,crypto,core,加密货币
+588080.SS,科创50ETF（参照）,yf,watch,A股
+159922.SZ,中证500ETF嘉实（参照）,yf,core watch,A股
+159915.SZ,创业板ETF（参照）,yf,watch,A股
+515800.SS,中证800ETF汇添富（参照）,yf,watch,A股
+159592.SZ,中证A50ETF银华（参照）,yf,watch,A股
+510050.SS,上证50ETF华夏（参照）,yf,core watch,A股
+QQQM,纳斯达克100（参照）,yf,watch,美股
+DJIA,道琼斯指数（参照）,yf,watch,美股
+512480.SS,半导体ETF（半导体行业参照）,yf,watch,A股
+512880.SS,证券ETF（证券行业参照）,yf,watch,A股
+159992.SZ,创新药ETF（医疗行业参照）,yf,watch,A股
+516270.SS,新能源ETF（新能源行业参照）,yf,watch,A股
+159326.SZ,电网设备ETF（电网行业参照）,yf,watch,A股
+512200.SS,房地产ETF（房地产行业参照）,yf,watch,A股
+SLV,白银（参照）,yf,watch,大宗商品及贵金属
+BNO,布伦特原油ETF(参照),yf,watch,大宗商品及贵金属
