@@ -5,7 +5,9 @@ import os
 import datetime
 
 # ================= 核心系统配置 =================
-SENDKEY = os.environ.get('SERVERCHAN_KEY')
+# ⚠️ 注意：需在 GitHub Actions Secrets 中配置这两个新变量
+WXPUSHER_APP_TOKEN = os.environ.get('WXPUSHER_APP_TOKEN')
+WXPUSHER_UID = os.environ.get('WXPUSHER_UID')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
@@ -25,11 +27,6 @@ def load_portfolio():
             
         df.columns = [str(c).strip().lower() for c in df.columns]
         
-        if 'active' not in df.columns:
-            df['active'] = 'y'
-        else:
-            df['active'] = df['active'].fillna('y').str.strip().str.lower()
-            
         if 'name' not in df.columns:
             df['name'] = df['ticker']
         else:
@@ -40,7 +37,7 @@ def load_portfolio():
         else:
             df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
             
-        return df[['ticker', 'name', 'type', 'pool', 'active']].to_dict('records')
+        return df[['ticker', 'name', 'type', 'pool']].to_dict('records')
     except Exception as e:
         print(f"清单读取与解析失败: {e}")
         return []
@@ -49,7 +46,6 @@ def align_to_last_friday(df):
     if df is None or df.empty: return None
     try:
         df.columns = [str(c).strip().lower() for c in df.columns]
-        
         if df.index.tz is not None: df.index = df.index.tz_localize(None)
         today = pd.Timestamp.today().normalize()
         days_since_friday = (today.dayofweek - 4) % 7
@@ -64,39 +60,25 @@ def align_to_last_friday(df):
         if len(weekly_df) < 2: return None
         return weekly_df
     except Exception as e:
-        print(f"时间轴对齐失败: {e}")
         return None
 
-def analyze_asset(weekly_df, item, calc_signals=True):
+def analyze_asset(weekly_df, item):
     weekly_df.columns = [str(c).lower() for c in weekly_df.columns]
     prev_week = weekly_df.iloc[-2]
     last_week = weekly_df.iloc[-1]
     
-    weekly_return = ((last_week['close'] - prev_week['close']) / prev_week['close']) * 100
-    if weekly_return > 0: perf_str = f"+{weekly_return:.2f}% 🔴"
-    elif weekly_return < 0: perf_str = f"{weekly_return:.2f}% 🟢"
-    else: perf_str = f"0.00% ⚪"
+    current_price = last_week['close']
+    prev_price = prev_week['close']
     
-    extremum_signal, ma_trend = "", ""
-    if calc_signals and len(weekly_df) >= 20:
-        weekly_df['ma5'] = weekly_df['close'].rolling(window=5).mean()
-        weekly_df['ma20'] = weekly_df['close'].rolling(window=20).mean()
-        
-        lw_ma5, lw_ma20 = weekly_df.iloc[-1]['ma5'], weekly_df.iloc[-1]['ma20']
-        
-        if lw_ma5 >= lw_ma20: ma_trend = "多头"
-        else: ma_trend = "空头"
-            
-        if len(weekly_df) >= 52:
-            past_52_weeks = weekly_df.iloc[-53:-1]
-            if last_week['close'] >= past_52_weeks['high'].max(): extremum_signal = "新高"
-            elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "新低"
+    pct_change = ((current_price - prev_price) / prev_price) * 100
                 
     return {
-        "ticker": item['ticker'], "name": item['name'], "type": item['type'], 
-        "pool": item['pool'], "active": item['active'],
-        "raw_return": weekly_return, "performance": perf_str, 
-        "extremum_signal": extremum_signal, "ma_trend": ma_trend 
+        "ticker": item['ticker'], 
+        "name": item['name'], 
+        "type": item['type'], 
+        "pool": item['pool'], 
+        "current_price": current_price,
+        "pct_change": pct_change
     }
 
 def fetch_yf_data(item):
@@ -105,7 +87,7 @@ def fetch_yf_data(item):
     
     if '.SS' in ticker or '.SZ' in ticker:
         sec_id = f"1.{clean_code}" if ticker.endswith('.SS') or clean_code.startswith(('5', '6')) else f"0.{clean_code}"
-        em_url = f"http://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec_id}&klt=101&fqt=1&end=20500101&lmt=400&fields1=f1,f2,f3&fields2=f51,f53,f54,f55"
+        em_url = f"http://push2his.eastmoney.com/api/qt/stock/kline/get?secid={sec_id}&klt=101&fqt=1&end=20500101&lmt=100&fields1=f1,f2,f3&fields2=f51,f53,f54,f55"
         try:
             res = requests.get(em_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
             if res.status_code == 200:
@@ -124,13 +106,12 @@ def fetch_yf_data(item):
                         df['date'] = pd.to_datetime(df['date'])
                         df.set_index('date', inplace=True)
                         aligned_df = align_to_last_friday(df)
-                        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-        except Exception:
-            pass
+                        if aligned_df is not None: return analyze_asset(aligned_df, item)
+        except: pass
 
         prefix = 'sh' if '.SS' in ticker else 'sz'
         tc = f"{prefix}{clean_code}"
-        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,100,qfq"
         try:
             res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
             if res.status_code == 200:
@@ -150,9 +131,8 @@ def fetch_yf_data(item):
                         df['date'] = pd.to_datetime(df['date'])
                         df.set_index('date', inplace=True)
                         aligned_df = align_to_last_friday(df)
-                        if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-        except Exception:
-            pass
+                        if aligned_df is not None: return analyze_asset(aligned_df, item)
+        except: pass
         return None
 
     else:
@@ -160,12 +140,11 @@ def fetch_yf_data(item):
             yf_ticker = ticker
             if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
                 yf_ticker = f"{clean_code[1:]}.HK"
-            data = yf.Ticker(yf_ticker).history(period="2y", interval="1d", auto_adjust=True)
+            data = yf.Ticker(yf_ticker).history(period="1y", interval="1d", auto_adjust=True)
             if len(data) > 0:
                 aligned_df = align_to_last_friday(data)
-                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-        except Exception:
-            pass
+                if aligned_df is not None: return analyze_asset(aligned_df, item)
+        except: pass
             
         try:
             target_codes = []
@@ -176,7 +155,7 @@ def fetch_yf_data(item):
                     'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')
                 ]
             for tc in target_codes:
-                url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,400,qfq"
+                url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,100,qfq"
                 res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
                 if res.status_code == 200:
                     json_data = res.json()
@@ -195,8 +174,8 @@ def fetch_yf_data(item):
                             df['date'] = pd.to_datetime(df['date'])
                             df.set_index('date', inplace=True)
                             aligned_df = align_to_last_friday(df)
-                            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-        except Exception: pass
+                            if aligned_df is not None: return analyze_asset(aligned_df, item)
+        except: pass
         return None
 
 def fetch_fund_data(item):
@@ -221,9 +200,8 @@ def fetch_fund_data(item):
             df['date'] = pd.to_datetime(df['date'])
             df.set_index('date', inplace=True)
             aligned_df = align_to_last_friday(df)
-            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception:
-        pass
+            if aligned_df is not None: return analyze_asset(aligned_df, item)
+    except: pass
     return None
 
 def fetch_crypto_data(item):
@@ -233,8 +211,8 @@ def fetch_crypto_data(item):
         data = yf.Ticker(yf_symbol).history(period="1y", interval="1d", auto_adjust=True)
         if len(data) > 0:
             aligned_df = align_to_last_friday(data)
-            if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception: pass
+            if aligned_df is not None: return analyze_asset(aligned_df, item)
+    except: pass
 
     try:
         base_coin = str(ticker).upper().split('/')[0] 
@@ -248,92 +226,124 @@ def fetch_crypto_data(item):
                 df.set_index('date', inplace=True)
                 df = df.sort_index()
                 aligned_df = align_to_last_friday(df)
-                if aligned_df is not None: return analyze_asset(aligned_df, item, calc_signals=True)
-    except Exception: pass
+                if aligned_df is not None: return analyze_asset(aligned_df, item)
+    except: pass
     return None
 
-# ================= 🚀 UI 渲染层 (全谱系聚合看板) =================
+# ================= 🚀 HTML UI 渲染引擎 (三列极简 APP 视觉) =================
 
-def build_sub_pool_list(subtitle, sub_assets):
-    """渲染子级持仓/自选池，单行标签聚合"""
-    if not sub_assets: return ""
-    md = f"#### {subtitle}\n"
-    for r in sub_assets:
-        line = f"- **{r['name']}** {r['performance']}"
-        if r.get('active') != 'n':
-            tags = []
-            if r.get('extremum_signal') == '新高': tags.append("🚀新高")
-            elif r.get('extremum_signal') == '新低': tags.append("🩸新低")
-            if r.get('ma_trend') == '多头': tags.append("📈多头")
-            elif r.get('ma_trend') == '空头': tags.append("📉空头")
-            if tags: line += f" `[{'] ['.join(tags)}]`"
-        md += line + "\n"
-    return md + "\n"
-
-def build_type_section(title, assets):
-    """【重构】以资产类别为主组织，内部划分持仓与自选，若双重标记强行归于持仓"""
+def build_html_table(assets):
+    """构建像素级对齐的三列 HTML 数据表"""
     if not assets: return ""
     
-    # 🎯 核心逻辑区分：核心覆盖一切包含 core 的资产，自选仅保留单纯包含 watch 的资产
-    core_assets = [r for r in assets if 'core' in str(r.get('pool', '')).lower()]
-    watch_assets = [r for r in assets if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
+    html = '<table style="width:100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;">'
+    # 表头设计：去掉了涨跌额，保留名称/代码、最新、涨幅三列
+    html += '<tr style="color:#888; font-size:12px; border-bottom:1px solid #eaeaea;">'
+    html += '<th style="text-align:left; padding:8px 0; font-weight:normal;">名称/代码</th>'
+    html += '<th style="text-align:right; padding:8px 0; font-weight:normal;">最新</th>'
+    html += '<th style="text-align:right; padding:8px 0; font-weight:normal;">涨幅</th></tr>'
     
-    md = f"### {title}\n\n"
-    md += build_sub_pool_list("💼 核心持仓", core_assets)
-    md += build_sub_pool_list("👀 备选观察", watch_assets)
-    return md
+    for r in assets:
+        pct = r['pct_change']
+        
+        # 配色逻辑：中国市场红涨绿跌
+        if pct > 0:
+            color = "#F9293E" # 东财红
+            sign = "+"
+        elif pct < 0:
+            color = "#00AA3B" # 东财绿
+            sign = ""
+        else:
+            color = "#999999" # 平盘灰
+            sign = ""
+            
+        # 动态小数位：加密货币价格保留2位，ETF/股票保留3位，基金保留4位
+        if r['type'] == 'crypto': price_dec = 2
+        elif r['type'] == 'jj': price_dec = 4
+        else: price_dec = 3
+            
+        price_str = f"{r['current_price']:.{price_dec}f}"
+        pct_str = f"{sign}{pct:.2f}%"
+        
+        html += '<tr style="border-bottom:1px solid #f5f5f5;">'
+        # 核心：利用 div 和 br 实现名称与代码折叠展示
+        html += f'<td style="padding:10px 0;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px;">{r["name"]}</div><div style="font-size:11px; color:#999;">{r["ticker"]}</div></td>'
+        html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:16px; font-weight:500;">{price_str}</td>'
+        html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:15px; font-weight:500;">{pct_str}</td>'
+        html += '</tr>'
+        
+    html += '</table><br>'
+    return html
 
-def send_and_archive_report(all_reports, failed_list):
-    # 统一进行全池排序（按涨跌幅）
-    all_reports.sort(key=lambda x: x['raw_return'], reverse=True)
-    
-    md = "## 📊 资产大盘全景看板\n---\n"
-    
-    yf_assets = [r for r in all_reports if r['type'] == 'yf']
-    jj_assets = [r for r in all_reports if r['type'] == 'jj']
-    crypto_assets = [r for r in all_reports if r['type'] == 'crypto']
-    
-    md += build_type_section("🏛️ 股票与场内 ETF", yf_assets)
-    md += build_type_section("🏦 场外公募基金", jj_assets)
-    md += build_type_section("🪙 加密货币", crypto_assets)
+def build_section(title, assets):
+    if not assets: return ""
+    html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 20px 0 10px 0; padding-left: 8px; border-left: 4px solid #337ab7;">{title}</div>'
+    html += build_html_table(assets)
+    return html
 
-    # ━━━━━━━━━ 最终：盲区公示 ━━━━━━━━━
-    md += "## ⚠️ 核心盲区公示\n---\n"
+def send_wxpusher_report(all_reports, failed_list):
+    # 统一按涨跌幅降序
+    all_reports.sort(key=lambda x: x['pct_change'], reverse=True)
+    
+    # 强制分类逻辑
+    core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
+    watch_pool = [r for r in all_reports if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
+    
+    html_content = f'<div style="padding: 10px; background-color: #fff;">'
+    html_content += f'<h2 style="text-align:center; color:#333; margin-bottom: 20px;">资产全景看板</h2>'
+    
+    # 构建核心持仓
+    if core_pool:
+        html_content += build_section("💼 核心持仓", core_pool)
+        
+    # 构建备选观察
+    if watch_pool:
+        html_content += build_section("👀 备选观察", watch_pool)
+        
+    # 盲区公示
     if failed_list:
-        md += "> 以下标的未获取到有效对齐数据：\n> \n"
-        for fail in failed_list:
-            md += f"> - **{fail['name']}**\n"
-    else:
-        md += "> *无*\n"
-    md += "\n"
+        failed_names = ", ".join([f['name'] for f in failed_list])
+        html_content += f'<div style="margin-top:20px; font-size:12px; color:#f0ad4e; background:#fcf8e3; padding:10px; border-radius:4px;">⚠️ <b>未能获取数据的标的：</b><br>{failed_names}</div>'
+        
+    html_content += '</div>'
 
+    # 推送至 WxPusher
+    if not WXPUSHER_APP_TOKEN or not WXPUSHER_UID:
+        print("未检测到 WXPUSHER_APP_TOKEN 或 WXPUSHER_UID，跳过推送。")
+        return
+        
+    url = "https://wxpusher.zjiecode.com/api/send/message"
+    payload = {
+        "appToken": WXPUSHER_APP_TOKEN,
+        "content": html_content,
+        "summary": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产全景看板", 
+        "contentType": 2, # 2表示原生HTML渲染
+        "uids": [WXPUSHER_UID]
+    }
+    
+    try:
+        res = requests.post(url, json=payload)
+        print("WxPusher 推送响应:", res.text)
+    except Exception as e:
+        print(f"WxPusher 推送失败: {e}")
+
+    # 同时归档 Markdown 格式到 Github 仓库 (去掉 HTML 标签纯文本保存)
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
         file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.md")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f"# 📈 资产网格周报 ({today_str})\n\n" + md)
-        print(f"✅ 报告已归档，路径: {file_path}")
+            f.write(f"# 📈 资产配置周报 ({today_str})\n\n已推送到 WxPusher，查看手机端原生排版。")
     except Exception as e:
-        print(f"⚠️ 报告归档失败: {e}")
-
-    if not SENDKEY: 
-        print("未检测到 SERVERCHAN_KEY 环境变量，跳过推送。")
-        return
-        
-    url = f"https://sctapi.ftqq.com/{SENDKEY}.send"
-    res = requests.post(url, data={"title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产网格周报", "desp": md})
-    print("Server酱 推送响应:", res.text)
+        pass
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行单景聚合去重渲染机制...")
+    print(f"[{start_time}] 引擎点火，执行仿原生 APP 三列极简排版...")
     
     assets_清单 = load_portfolio()
     all_reports = []
     failed_assets = [] 
-    
-    print(f"载入有效监控目标总数: {len(assets_清单)}")
     
     for item in assets_清单:
         res = None
@@ -344,5 +354,5 @@ if __name__ == "__main__":
         if res: all_reports.append(res)
         else: failed_assets.append(item)
             
-    send_and_archive_report(all_reports, failed_assets)
+    send_wxpusher_report(all_reports, failed_assets)
     print(f"扫描完毕，总耗时: {(datetime.datetime.now() - start_time).seconds} 秒")
