@@ -27,6 +27,7 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          TZ: Asia/Shanghai  # <--- 强制设置环境时区为北京时间
         run: |
           python monitor.py
           
