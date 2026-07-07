@@ -10,13 +10,13 @@ PG,宝洁,yf,core,美股
 03416.HK,AGX国指兑,yf,core,港股
 513330.SS,恒生互联网ETF华夏,yf,core,港股
 513050.SS,中概互联网ETF易方达（参照）,yf,core watch,港股
-012920,易方达全球成长精选混合(QDII)A,jj,core,其他海外市场
+012920,易方达全球成长精选混合(QDII)A,jj,core,美股
 MSFT,微软,yf,core,美股
 TLT,iShares安硕20年期以上美国国债,yf,core watch,国内外债券
-006373,国富全球科技互联混合(QDII)人民币A,jj,core,其他海外市场
+006373,国富全球科技互联混合(QDII)人民币A,jj,core,美股
 050025,博时标普500ETF联接A,jj,core,美股
 TSM,台积电,yf,core,美股
-001668,汇添富全球移动互联混合(QDII)人民币A,jj,core,其他海外市场
+001668,汇添富全球移动互联混合(QDII)人民币A,jj,core,美股
 164824.SZ,印度基金LOF（参照）,yf,core watch,其他海外市场
 007280,摩根日本精选股票(QDII)A,jj,core,其他海外市场
 006105,宏利印度股票(QDII)A,jj,core,其他海外市场
@@ -33,7 +33,7 @@ SGOL,ETFS实物瑞士黄金股份,yf,core,大宗商品及贵金属
 162415.SZ,美国消费LOF（参照）,yf,core watch,美股
 513850.SS,美国50ETF易方达,yf,core,美股
 270042,广发纳斯达克100ETF联接人民币(QDII)A,jj,core,美股
-PFF,优先股指数ETF-iShares S&P,yf,core,国内外债券
+PFF,优先股指数ETF-iShares S&P,yf,core,美股
 KO,可口可乐,yf,core,美股
 162411.SZ,华宝油气LOF,yf,core,大宗商品及贵金属
 513970.SS,恒生消费ETF景顺,yf,core,港股
@@ -46,7 +46,7 @@ ORCL,甲骨文,yf,core,美股
 513300.SS,纳斯达克ETF华夏,yf,core,美股
 00005.HK,汇丰控股,yf,core,港股
 161125,易方达标普500指数(QDII-LOF)A(人民币份额),jj,core,美股
-511380.SS,可转债ETF博时,yf,core,国内外债券
+511380.SS,可转债ETF博时,yf,core,A股
 006282,摩根欧洲动力策略股票(QDII)A,jj,core,其他海外市场
 MOAT,VanEck Vectors晨星Wide Moat ETF,yf,core,美股
 510300.SS,沪深300ETF华泰柏瑞（参照）,yf,core watch,A股
@@ -70,7 +70,7 @@ AAPL,苹果,yf,core,美股
 006195,国金量化多因子股票A,jj,core,A股
 001044,嘉实新消费股票A,jj,core,A股
 00006.HK,电能实业,yf,core,港股
-515220.SS,煤炭ETF国泰（煤炭行业参照）,yf,core watch,A股
+515220.SS,煤炭ETF国泰（煤炭行业参照）,yf,core watch,大宗商品及贵金属
 000834,大成纳斯达克100ETF联接(QDII)A,jj,core,美股
 513030.SS,德国ETF华安（参照）,yf,core watch,其他海外市场
 012708,东方红中证东方红红利低波动指数A,jj,core,A股
@@ -85,7 +85,7 @@ VOO,标普500ETF-Vanguard（标普500指数参照）,yf,core watch,美股
 012348,天弘恒生科技ETF联接A,jj,core,港股
 159870.SZ,化工ETF鹏华（化工行业参照）,yf,core watch,A股
 163411,兴全精选混合基金,jj,core,A股
-159980.SZ,有色ETF大成（有色行业参照）,yf,core watch,A股
+159980.SZ,有色ETF大成（有色行业参照）,yf,core watch,大宗商品及贵金属
 012380,创金合信港股互联网3个月持有期混合(QDII)C,jj,core,港股
 001410,信澳新能源产业股票A,jj,core,A股
 JPM,摩根大通,yf,core,美股
@@ -106,7 +106,7 @@ SHY,美国国债1-3年ETF-iShares,yf,core,国内外债券
 018920,东方红中证优势成长指数发起A,jj,core,A股
 600887.SS,伊利股份,yf,core,A股
 601899.SS,紫金矿业,yf,core,A股
-159698.SZ,粮食ETF鹏华（参照）,yf,core watch,A股
+159698.SZ,粮食ETF鹏华（参照）,yf,core watch,大宗商品及贵金属
 BTC/USDT,比特币,crypto,core,加密货币
 ETH/USDT,以太坊,crypto,core,加密货币
 588080.SS,科创50ETF（参照）,yf,watch,A股
