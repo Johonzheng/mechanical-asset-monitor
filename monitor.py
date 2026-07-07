@@ -14,6 +14,17 @@ EMAIL_PASS = os.environ.get('EMAIL_PASS')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
 REPORT_DIR = os.path.join(BASE_DIR, 'reports')
+
+# 定义市场分类排序逻辑与对应的 Emoji 图标
+MARKET_CONFIG = {
+    'A股': '🇨🇳', 
+    '港股': '🇭🇰', 
+    '美股': '🇺🇸', 
+    '其他海外市场': '🌍', 
+    '国内外债券': '📜', 
+    '大宗商品及贵金属': '🛢️', 
+    '加密货币': '🪙'
+}
 # ================================================
 
 def load_portfolio():
@@ -35,7 +46,10 @@ def load_portfolio():
         if 'pool' not in df.columns: df['pool'] = 'core'
         else: df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
             
-        return df[['ticker', 'name', 'type', 'pool']].to_dict('records')
+        if 'market' not in df.columns: df['market'] = 'A股'
+        else: df['market'] = df['market'].fillna('未知市场').str.strip()
+            
+        return df[['ticker', 'name', 'type', 'pool', 'market']].to_dict('records')
     except Exception as e:
         print(f"清单读取与解析失败: {e}")
         return []
@@ -67,14 +81,32 @@ def analyze_asset(weekly_df, item):
     current_price = last_week['close']
     prev_price = prev_week['close']
     pct_change = ((current_price - prev_price) / prev_price) * 100
+    
+    extremum_signal, ma_trend = "", "未知"
+    if len(weekly_df) >= 20:
+        weekly_df['ma5'] = weekly_df['close'].rolling(window=5).mean()
+        weekly_df['ma20'] = weekly_df['close'].rolling(window=20).mean()
+        lw_ma5, lw_ma20 = weekly_df.iloc[-1]['ma5'], weekly_df.iloc[-1]['ma20']
+        
+        if pd.notna(lw_ma5) and pd.notna(lw_ma20):
+            if lw_ma5 >= lw_ma20: ma_trend = "多头"
+            else: ma_trend = "空头"
+            
+        if len(weekly_df) >= 52:
+            past_52_weeks = weekly_df.iloc[-53:-1]
+            if last_week['close'] >= past_52_weeks['high'].max(): extremum_signal = "新高"
+            elif last_week['close'] <= past_52_weeks['low'].min(): extremum_signal = "新低"
                 
     return {
         "ticker": item['ticker'], 
         "name": item['name'], 
         "type": item['type'], 
         "pool": item['pool'], 
+        "market": item['market'],
         "current_price": current_price,
-        "pct_change": pct_change
+        "pct_change": pct_change,
+        "extremum_signal": extremum_signal,
+        "ma_trend": ma_trend
     }
 
 def fetch_yf_data(item):
@@ -194,27 +226,23 @@ def fetch_crypto_data(item):
     except: pass
     return None
 
-# ================= 🚀 HTML UI 渲染引擎 (邮件精美适配版) =================
+# ================= 🚀 HTML UI 渲染引擎 =================
 
 def build_html_table(assets):
+    """构建单类别下的资产表格"""
     if not assets: return ""
     html = '<table style="width:100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;">'
-    html += '<tr style="color:#888; font-size:13px; border-bottom:1px solid #eaeaea;">'
-    html += '<th style="text-align:left; padding:10px 4px; font-weight:normal;">名称/代码</th>'
-    html += '<th style="text-align:right; padding:10px 4px; font-weight:normal;">最新价</th>'
-    html += '<th style="text-align:right; padding:10px 4px; font-weight:normal;">涨跌幅</th></tr>'
+    html += '<tr style="color:#888; font-size:12px; border-bottom:1px solid #eaeaea;">'
+    html += '<th style="text-align:left; padding:8px 4px; font-weight:normal;">名称/代码</th>'
+    html += '<th style="text-align:right; padding:8px 4px; font-weight:normal;">最新</th>'
+    html += '<th style="text-align:right; padding:8px 4px; font-weight:normal;">涨幅</th>'
+    html += '<th style="text-align:right; padding:8px 4px; font-weight:normal;">趋势</th></tr>'
     
     for r in assets:
         pct = r['pct_change']
-        if pct > 0:
-            color = "#F9293E" 
-            sign = "+"
-        elif pct < 0:
-            color = "#00AA3B" 
-            sign = ""
-        else:
-            color = "#999999" 
-            sign = ""
+        if pct > 0: color, sign = "#F9293E", "+"
+        elif pct < 0: color, sign = "#00AA3B", ""
+        else: color, sign = "#999999", ""
             
         if r['type'] == 'crypto': price_dec = 2
         elif r['type'] == 'jj': price_dec = 4
@@ -223,19 +251,51 @@ def build_html_table(assets):
         price_str = f"{r['current_price']:.{price_dec}f}"
         pct_str = f"{sign}{pct:.2f}%"
         
+        # 极值标签渲染
+        extreme_tag = ""
+        if r.get('extremum_signal') == '新高':
+            extreme_tag = ' <span style="background-color:#F9293E; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:text-bottom;">新高</span>'
+        elif r.get('extremum_signal') == '新低':
+            extreme_tag = ' <span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:text-bottom;">新低</span>'
+
+        # 多空趋势渲染
+        trend_str = r.get('ma_trend', '未知')
+        if trend_str == "多头": trend_color = "#F9293E"
+        elif trend_str == "空头": trend_color = "#00AA3B"
+        else: trend_color = "#999999"
+        
+        # padding 调整为 10px 4px，名称使用 flex 布局以对齐标签
         html += '<tr style="border-bottom:1px solid #f5f5f5;">'
-        html += f'<td style="padding:12px 4px;"><div style="font-size:16px; color:#333; font-weight:bold; margin-bottom:4px; letter-spacing:0.5px;">{r["name"]}</div><div style="font-size:12px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
-        html += f'<td style="text-align:right; padding:12px 4px; color:{color}; font-size:17px; font-weight:600;">{price_str}</td>'
-        html += f'<td style="text-align:right; padding:12px 4px; color:{color}; font-size:17px; font-weight:600;">{pct_str}</td>'
+        html += f'<td style="padding:10px 4px;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px; display:flex; align-items:center;"><span>{r["name"]}</span>{extreme_tag}</div><div style="font-size:11px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
+        html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:16px; font-weight:600;">{price_str}</td>'
+        html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:15px; font-weight:600;">{pct_str}</td>'
+        html += f'<td style="text-align:right; padding:10px 4px; color:{trend_color}; font-size:14px; font-weight:bold;">{trend_str}</td>'
         html += '</tr>'
         
-    html += '</table><br>'
+    html += '</table>'
     return html
 
-def build_section(title, assets):
-    if not assets: return ""
-    html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 24px 0 12px 0; padding-left: 10px; border-left: 4px solid #337ab7; display:flex; align-items:center;">{title}</div>'
-    html += build_html_table(assets)
+def build_pool_html(pool_title, pool_assets):
+    """构建核心/备选大模块（包含内部标签分割）"""
+    if not pool_assets: return ""
+    
+    # 模块大标题
+    html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 30px 0 15px 0; padding-left: 10px; border-left: 4px solid #337ab7;">{pool_title}</div>'
+    
+    # 按照 MARKET_CONFIG 定义的市场顺序进行渲染
+    for market, emoji in MARKET_CONFIG.items():
+        market_assets = [a for a in pool_assets if a.get('market') == market]
+        if market_assets:
+            # 仿截图的灰色背景分割标签带
+            html += f'<div style="background-color: #f4f5f7; color: #444; font-size: 14px; font-weight: bold; padding: 8px 12px; margin-top: 15px; border-radius: 4px; display: flex; align-items: center;">{emoji} &nbsp;{market}</div>'
+            html += build_html_table(market_assets)
+            
+    # 处理未明确在配置列表中的其他市场资产
+    other_assets = [a for a in pool_assets if a.get('market') not in MARKET_CONFIG.keys()]
+    if other_assets:
+        html += f'<div style="background-color: #f4f5f7; color: #444; font-size: 14px; font-weight: bold; padding: 8px 12px; margin-top: 15px; border-radius: 4px; display: flex; align-items: center;">🏷️ &nbsp;其他分类</div>'
+        html += build_html_table(other_assets)
+        
     return html
 
 def send_email_report(all_reports, failed_list):
@@ -243,26 +303,37 @@ def send_email_report(all_reports, failed_list):
         print("没有成功获取的数据，跳过发送邮件。")
         return
 
+    # 全局降序排序
     all_reports.sort(key=lambda x: x['pct_change'], reverse=True)
     
+    # 提取三大池
     core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
     watch_pool = [r for r in all_reports if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
     
-    # 构筑外层卡片式 UI 容器
-    html_content = f'<html><body style="background-color: #f0f2f5; padding: 20px 10px; font-family: sans-serif;">'
-    html_content += f'<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
-    html_content += f'<h2 style="text-align:center; color:#2c3e50; margin-bottom: 30px; font-size:22px; border-bottom: 2px solid #eee; padding-bottom: 15px;">📊 资产网格大盘全景</h2>'
+    # 构建 HTML 骨架
+    html_content = f'<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="background-color: #f0f2f5; padding: 15px 5px; font-family: sans-serif; margin:0;">'
+    html_content += f'<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">'
     
-    if core_pool: html_content += build_section("💼 核心持仓", core_pool)
-    if watch_pool: html_content += build_section("👀 备选观察", watch_pool)
+    # 顶部标题
+    html_content += f'<h2 style="text-align:center; color:#2c3e50; margin-top:5px; margin-bottom: 10px; font-size:22px;">📊 资产大盘全景看板</h2>'
+    html_content += f'<div style="text-align:center; color:#888; font-size:12px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">生成时间: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}</div>'
+    
+    # 渲染核心模块与备选模块
+    if core_pool: html_content += build_pool_html("💼 核心持仓", core_pool)
+    if watch_pool: html_content += build_pool_html("👀 备选观察", watch_pool)
         
+    # 渲染异常信息大模块 (直接罗列)
     if failed_list:
-        failed_names = ", ".join([f['name'] for f in failed_list])
-        html_content += f'<div style="margin-top:20px; font-size:13px; color:#e6a23c; background:#fcf8e3; padding:12px; border-radius:6px; line-height:1.5;">⚠️ <b>未能获取数据的标的：</b><br>{failed_names}</div>'
+        html_content += f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 30px 0 15px 0; padding-left: 10px; border-left: 4px solid #e6a23c;">⚠️ 异常信息</div>'
+        html_content += f'<div style="background-color: #fcf8e3; color: #e6a23c; font-size: 13px; padding: 12px; border-radius: 6px; border: 1px solid #faebcc; line-height: 1.6;">'
+        html_content += f'<b>以下标的未能获取最新数据（请检查网络或停牌状态）：</b><br>'
+        for f_item in failed_list:
+            html_content += f'<div style="margin-top: 4px;">• {f_item["name"]} <span style="color:#aaa; font-family:monospace;">({f_item["ticker"]})</span></div>'
+        html_content += f'</div>'
         
     html_content += '</div></body></html>'
 
-    # 本地 HTML 归档
+    # 本地归档保存
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -281,11 +352,10 @@ def send_email_report(all_reports, failed_list):
     try:
         msg = MIMEMultipart()
         msg['From'] = EMAIL_USER
-        msg['To'] = EMAIL_USER  # 默认发送给自己
+        msg['To'] = EMAIL_USER 
         msg['Subject'] = f"📈 资产大盘全景看板 ({datetime.datetime.now().strftime('%m-%d')})"
         msg.attach(MIMEText(html_content, 'html', 'utf-8'))
         
-        # 🟢 终极修复：自动提取邮箱后缀，完美支持 126、163、QQ 等所有主流邮箱
         domain = EMAIL_USER.split('@')[-1]
         smtp_server = f"smtp.{domain}"
         
@@ -299,7 +369,7 @@ def send_email_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行原生邮件直连通道渲染...")
+    print(f"[{start_time}] 引擎点火，执行标签分割与多空阵营渲染...")
     
     assets_清单 = load_portfolio()
     all_reports = []
