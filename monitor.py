@@ -252,73 +252,52 @@ def fetch_crypto_data(item):
     except Exception: pass
     return None
 
-# ================= 🚀 UI 渲染层 (极简纯净版) =================
+# ================= 🚀 UI 渲染层 (全谱系聚合看板) =================
 
-def build_signal_section(title, asset_list, key, target_val):
-    md = f"#### {title}\n\n"
-    matched = [r for r in asset_list if r.get(key) == target_val and r.get('active') != 'n']
-    if matched:
-        for r in matched:
-            md += f"- **{r['name']}** {r['performance']}\n"
-    else:
-        md += "> *无*\n"
+def build_sub_pool_list(subtitle, sub_assets):
+    """渲染子级持仓/自选池，单行标签聚合"""
+    if not sub_assets: return ""
+    md = f"#### {subtitle}\n"
+    for r in sub_assets:
+        line = f"- **{r['name']}** {r['performance']}"
+        if r.get('active') != 'n':
+            tags = []
+            if r.get('extremum_signal') == '新高': tags.append("🚀新高")
+            elif r.get('extremum_signal') == '新低': tags.append("🩸新低")
+            if r.get('ma_trend') == '多头': tags.append("📈多头")
+            elif r.get('ma_trend') == '空头': tags.append("📉空头")
+            if tags: line += f" `[{'] ['.join(tags)}]`"
+        md += line + "\n"
     return md + "\n"
 
-def build_leaderboard_list(title, asset_list):
-    if not asset_list: return ""
+def build_type_section(title, assets):
+    """【重构】以资产类别为主组织，内部划分持仓与自选，若双重标记强行归于持仓"""
+    if not assets: return ""
+    
+    # 🎯 核心逻辑区分：核心覆盖一切包含 core 的资产，自选仅保留单纯包含 watch 的资产
+    core_assets = [r for r in assets if 'core' in str(r.get('pool', '')).lower()]
+    watch_assets = [r for r in assets if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
+    
     md = f"### {title}\n\n"
-    for r in asset_list:
-        md += f"- **{r['name']}** {r['performance']}\n"
-    return md + "\n"
+    md += build_sub_pool_list("💼 核心持仓", core_assets)
+    md += build_sub_pool_list("👀 备选观察", watch_assets)
+    return md
 
 def send_and_archive_report(all_reports, failed_list):
-    core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
-    watch_pool = [r for r in all_reports if 'watch' in str(r.get('pool', '')).lower()]
+    # 统一进行全池排序（按涨跌幅）
+    all_reports.sort(key=lambda x: x['raw_return'], reverse=True)
     
-    core_pool.sort(key=lambda x: x['raw_return'], reverse=True)
-    watch_pool.sort(key=lambda x: x['raw_return'], reverse=True)
+    md = "## 📊 资产大盘全景看板\n---\n"
     
-    md = ""
+    yf_assets = [r for r in all_reports if r['type'] == 'yf']
+    jj_assets = [r for r in all_reports if r['type'] == 'jj']
+    crypto_assets = [r for r in all_reports if r['type'] == 'crypto']
     
-    # ━━━━━━━━━ 顶层 1：核心持仓极值信号 ━━━━━━━━━
-    md += "## 🎯 核心持仓异动\n---\n"
-    md += build_signal_section("🚀 突破一年新高", core_pool, 'extremum_signal', '新高')
-    md += build_signal_section("🩸 跌破一年新低", core_pool, 'extremum_signal', '新低')
-    
-    # ━━━━━━━━━ 顶层 2：核心资产龙虎榜 ━━━━━━━━━
-    md += "## 📊 核心资产龙虎榜\n---\n"
-    yf_core = [r for r in core_pool if r['type'] == 'yf']
-    jj_core = [r for r in core_pool if r['type'] == 'jj']
-    crypto_core = [r for r in core_pool if r['type'] == 'crypto']
-    
-    md += build_leaderboard_list("🏛️ 股票与场内 ETF", yf_core)
-    md += build_leaderboard_list("🏦 场外公募基金", jj_core)
-    md += build_leaderboard_list("🪙 加密货币", crypto_core)
+    md += build_type_section("🏛️ 股票与场内 ETF", yf_assets)
+    md += build_type_section("🏦 场外公募基金", jj_assets)
+    md += build_type_section("🪙 加密货币", crypto_assets)
 
-    md += "## 🌊 核心趋势阵营\n---\n"
-    md += build_signal_section("📈 5周线在20周线上 (多头排列)", core_pool, 'ma_trend', '多头')
-    md += build_signal_section("📉 5周线在20周线下 (空头排列)", core_pool, 'ma_trend', '空头')
-
-    # ━━━━━━━━━ 底部：备选池分析 ━━━━━━━━━
-    if watch_pool:
-        md += "## 🔍 备选自选宏观雷达\n---\n"
-        md += build_signal_section("🚀 突破一年新高", watch_pool, 'extremum_signal', '新高')
-        md += build_signal_section("🩸 跌破一年新低", watch_pool, 'extremum_signal', '新低')
-
-        md += "## 📈 备选资产龙虎榜\n---\n"
-        yf_watch = [r for r in watch_pool if r['type'] == 'yf']
-        jj_watch = [r for r in watch_pool if r['type'] == 'jj']
-        crypto_watch = [r for r in watch_pool if r['type'] == 'crypto']
-        
-        md += build_leaderboard_list("🏛️ 股票与场内 ETF", yf_watch)
-        md += build_leaderboard_list("🏦 场外公募基金", jj_watch)
-        md += build_leaderboard_list("🪙 加密货币", crypto_watch)
-
-        md += "## 🌊 备选趋势阵营\n---\n"
-        md += build_signal_section("📈 5周线在20周线上 (多头排列)", watch_pool, 'ma_trend', '多头')
-        md += build_signal_section("📉 5周线在20周线下 (空头排列)", watch_pool, 'ma_trend', '空头')
-
-    # ━━━━━━━━━ 最终：故障排查 ━━━━━━━━━
+    # ━━━━━━━━━ 最终：盲区公示 ━━━━━━━━━
     md += "## ⚠️ 核心盲区公示\n---\n"
     if failed_list:
         md += "> 以下标的未获取到有效对齐数据：\n> \n"
@@ -348,7 +327,7 @@ def send_and_archive_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行无金叉/死叉纯净版渲染...")
+    print(f"[{start_time}] 引擎点火，执行单景聚合去重渲染机制...")
     
     assets_清单 = load_portfolio()
     all_reports = []
