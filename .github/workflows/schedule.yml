@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: 拉取代码库
         uses: actions/checkout@v4
-      
+        
       - name: 配置 Python 环境
         uses: actions/setup-python@v5
         with:
@@ -25,7 +25,7 @@ jobs:
           
       - name: 触发跨市场监控引擎
         env:
-          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
         run: |
           python monitor.py
           
