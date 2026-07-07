@@ -3,10 +3,13 @@ import pandas as pd
 import requests
 import os
 import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ================= 核心系统配置 =================
-# ⚠️ 注意：需在 GitHub Actions Secrets 中配置此变量
-PUSHPLUS_TOKEN = os.environ.get('PUSHPLUS_TOKEN')
+EMAIL_USER = os.environ.get('EMAIL_USER')
+EMAIL_PASS = os.environ.get('EMAIL_PASS')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
@@ -26,15 +29,11 @@ def load_portfolio():
             
         df.columns = [str(c).strip().lower() for c in df.columns]
         
-        if 'name' not in df.columns:
-            df['name'] = df['ticker']
-        else:
-            df['name'] = df['name'].fillna(df['ticker'])
+        if 'name' not in df.columns: df['name'] = df['ticker']
+        else: df['name'] = df['name'].fillna(df['ticker'])
             
-        if 'pool' not in df.columns:
-            df['pool'] = 'core'
-        else:
-            df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
+        if 'pool' not in df.columns: df['pool'] = 'core'
+        else: df['pool'] = df['pool'].fillna('core').str.strip().str.lower()
             
         return df[['ticker', 'name', 'type', 'pool']].to_dict('records')
     except Exception as e:
@@ -58,8 +57,7 @@ def align_to_last_friday(df):
         }).dropna()
         if len(weekly_df) < 2: return None
         return weekly_df
-    except Exception as e:
-        return None
+    except Exception: return None
 
 def analyze_asset(weekly_df, item):
     weekly_df.columns = [str(c).lower() for c in weekly_df.columns]
@@ -68,7 +66,6 @@ def analyze_asset(weekly_df, item):
     
     current_price = last_week['close']
     prev_price = prev_week['close']
-    
     pct_change = ((current_price - prev_price) / prev_price) * 100
                 
     return {
@@ -97,10 +94,7 @@ def fetch_yf_data(item):
                         cleaned_rows = []
                         for k in klines:
                             parts = k.split(',')
-                            cleaned_rows.append({
-                                'date': parts[0], 'close': float(parts[1]), 
-                                'high': float(parts[2]), 'low': float(parts[3])
-                            })
+                            cleaned_rows.append({'date': parts[0], 'close': float(parts[1]), 'high': float(parts[2]), 'low': float(parts[3])})
                         df = pd.DataFrame(cleaned_rows)
                         df['date'] = pd.to_datetime(df['date'])
                         df.set_index('date', inplace=True)
@@ -121,11 +115,7 @@ def fetch_yf_data(item):
                     if k_data and len(k_data) >= 5:
                         cleaned_rows = []
                         for row in k_data:
-                            if len(row) >= 6:
-                                cleaned_rows.append({
-                                    'date': row[0], 'close': float(row[2]),
-                                    'high': float(row[3]), 'low': float(row[4])
-                                })
+                            if len(row) >= 6: cleaned_rows.append({'date': row[0], 'close': float(row[2]), 'high': float(row[3]), 'low': float(row[4])})
                         df = pd.DataFrame(cleaned_rows)
                         df['date'] = pd.to_datetime(df['date'])
                         df.set_index('date', inplace=True)
@@ -137,8 +127,7 @@ def fetch_yf_data(item):
     else:
         try:
             yf_ticker = ticker
-            if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'):
-                yf_ticker = f"{clean_code[1:]}.HK"
+            if '.HK' in ticker and len(clean_code) == 5 and clean_code.startswith('0'): yf_ticker = f"{clean_code[1:]}.HK"
             data = yf.Ticker(yf_ticker).history(period="1y", interval="1d", auto_adjust=True)
             if len(data) > 0:
                 aligned_df = align_to_last_friday(data)
@@ -148,11 +137,7 @@ def fetch_yf_data(item):
         try:
             target_codes = []
             if '.HK' in ticker: target_codes = ['hk' + clean_code]
-            else: 
-                target_codes = [
-                    'us' + str(ticker), 'us' + str(ticker).replace('-', '.'),
-                    'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')
-                ]
+            else: target_codes = ['us' + str(ticker), 'us' + str(ticker).replace('-', '.'), 'us' + str(ticker).replace('-', '_'), 'us' + str(ticker).replace('-', '')]
             for tc in target_codes:
                 url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc},day,,,100,qfq"
                 res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
@@ -164,11 +149,7 @@ def fetch_yf_data(item):
                         if k_data and len(k_data) >= 5:
                             cleaned_rows = []
                             for row in k_data:
-                                if len(row) >= 6:
-                                    cleaned_rows.append({
-                                        'date': row[0], 'close': float(row[2]),
-                                        'high': float(row[3]), 'low': float(row[4])
-                                    })
+                                if len(row) >= 6: cleaned_rows.append({'date': row[0], 'close': float(row[2]), 'high': float(row[3]), 'low': float(row[4])})
                             df = pd.DataFrame(cleaned_rows)
                             df['date'] = pd.to_datetime(df['date'])
                             df.set_index('date', inplace=True)
@@ -188,7 +169,6 @@ def fetch_fund_data(item):
             end_idx = content.find(';', start_idx)
             import json
             data = json.loads(content[start_idx:end_idx])
-            
             cleaned_rows = []
             for entry in data:
                 import time
@@ -212,47 +192,28 @@ def fetch_crypto_data(item):
             aligned_df = align_to_last_friday(data)
             if aligned_df is not None: return analyze_asset(aligned_df, item)
     except: pass
-
-    try:
-        base_coin = str(ticker).upper().split('/')[0] 
-        url = f"https://api.exchange.coinbase.com/products/{base_coin}-USD/candles?granularity=86400"
-        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        if res.status_code == 200:
-            candles = res.json()
-            if candles:
-                df = pd.DataFrame(candles, columns=['time', 'low', 'high', 'open', 'close', 'volume'])
-                df['date'] = pd.to_datetime(df['time'], unit='s')
-                df.set_index('date', inplace=True)
-                df = df.sort_index()
-                aligned_df = align_to_last_friday(df)
-                if aligned_df is not None: return analyze_asset(aligned_df, item)
-    except: pass
     return None
 
-# ================= 🚀 HTML UI 渲染引擎 (三列极简 APP 视觉) =================
+# ================= 🚀 HTML UI 渲染引擎 (邮件精美适配版) =================
 
 def build_html_table(assets):
-    """构建像素级对齐的三列 HTML 数据表"""
     if not assets: return ""
-    
     html = '<table style="width:100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;">'
-    html += '<tr style="color:#888; font-size:12px; border-bottom:1px solid #eaeaea;">'
-    html += '<th style="text-align:left; padding:8px 0; font-weight:normal;">名称/代码</th>'
-    html += '<th style="text-align:right; padding:8px 0; font-weight:normal;">最新</th>'
-    html += '<th style="text-align:right; padding:8px 0; font-weight:normal;">涨幅</th></tr>'
+    html += '<tr style="color:#888; font-size:13px; border-bottom:1px solid #eaeaea;">'
+    html += '<th style="text-align:left; padding:10px 4px; font-weight:normal;">名称/代码</th>'
+    html += '<th style="text-align:right; padding:10px 4px; font-weight:normal;">最新价</th>'
+    html += '<th style="text-align:right; padding:10px 4px; font-weight:normal;">涨跌幅</th></tr>'
     
     for r in assets:
         pct = r['pct_change']
-        
-        # 配色逻辑：中国市场红涨绿跌
         if pct > 0:
-            color = "#F9293E" # 东财红
+            color = "#F9293E" 
             sign = "+"
         elif pct < 0:
-            color = "#00AA3B" # 东财绿
+            color = "#00AA3B" 
             sign = ""
         else:
-            color = "#999999" # 平盘灰
+            color = "#999999" 
             sign = ""
             
         if r['type'] == 'crypto': price_dec = 2
@@ -263,9 +224,9 @@ def build_html_table(assets):
         pct_str = f"{sign}{pct:.2f}%"
         
         html += '<tr style="border-bottom:1px solid #f5f5f5;">'
-        html += f'<td style="padding:10px 0;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px;">{r["name"]}</div><div style="font-size:11px; color:#999;">{r["ticker"]}</div></td>'
-        html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:16px; font-weight:500;">{price_str}</td>'
-        html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:15px; font-weight:500;">{pct_str}</td>'
+        html += f'<td style="padding:12px 4px;"><div style="font-size:16px; color:#333; font-weight:bold; margin-bottom:4px; letter-spacing:0.5px;">{r["name"]}</div><div style="font-size:12px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
+        html += f'<td style="text-align:right; padding:12px 4px; color:{color}; font-size:17px; font-weight:600;">{price_str}</td>'
+        html += f'<td style="text-align:right; padding:12px 4px; color:{color}; font-size:17px; font-weight:600;">{pct_str}</td>'
         html += '</tr>'
         
     html += '</table><br>'
@@ -273,68 +234,71 @@ def build_html_table(assets):
 
 def build_section(title, assets):
     if not assets: return ""
-    html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 20px 0 10px 0; padding-left: 8px; border-left: 4px solid #337ab7;">{title}</div>'
+    html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 24px 0 12px 0; padding-left: 10px; border-left: 4px solid #337ab7; display:flex; align-items:center;">{title}</div>'
     html += build_html_table(assets)
     return html
 
-def send_pushplus_report(all_reports, failed_list):
-    # 统一按涨跌幅降序
+def send_email_report(all_reports, failed_list):
+    if not all_reports:
+        print("没有成功获取的数据，跳过发送邮件。")
+        return
+
     all_reports.sort(key=lambda x: x['pct_change'], reverse=True)
     
-    # 强制分类逻辑
     core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
     watch_pool = [r for r in all_reports if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
     
-    html_content = f'<div style="padding: 10px; background-color: #fff;">'
-    html_content += f'<h2 style="text-align:center; color:#333; margin-bottom: 20px;">资产全景看板</h2>'
+    # 构筑外层卡片式 UI 容器
+    html_content = f'<html><body style="background-color: #f0f2f5; padding: 20px 10px; font-family: sans-serif;">'
+    html_content += f'<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
+    html_content += f'<h2 style="text-align:center; color:#2c3e50; margin-bottom: 30px; font-size:22px; border-bottom: 2px solid #eee; padding-bottom: 15px;">📊 资产网格大盘全景</h2>'
     
-    # 构建核心持仓
-    if core_pool:
-        html_content += build_section("💼 核心持仓", core_pool)
+    if core_pool: html_content += build_section("💼 核心持仓", core_pool)
+    if watch_pool: html_content += build_section("👀 备选观察", watch_pool)
         
-    # 构建备选观察
-    if watch_pool:
-        html_content += build_section("👀 备选观察", watch_pool)
-        
-    # 盲区公示
     if failed_list:
         failed_names = ", ".join([f['name'] for f in failed_list])
-        html_content += f'<div style="margin-top:20px; font-size:12px; color:#f0ad4e; background:#fcf8e3; padding:10px; border-radius:4px;">⚠️ <b>未能获取数据的标的：</b><br>{failed_names}</div>'
+        html_content += f'<div style="margin-top:20px; font-size:13px; color:#e6a23c; background:#fcf8e3; padding:12px; border-radius:6px; line-height:1.5;">⚠️ <b>未能获取数据的标的：</b><br>{failed_names}</div>'
         
-    html_content += '</div>'
+    html_content += '</div></body></html>'
 
-    # 推送至 PushPlus
-    if not PUSHPLUS_TOKEN:
-        print("未检测到 PUSHPLUS_TOKEN 环境变量，跳过推送。")
-        return
-        
-    url = "http://www.pushplus.plus/send"
-    payload = {
-        "token": PUSHPLUS_TOKEN,
-        "title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产全景看板", 
-        "content": html_content,
-        "template": "html"
-    }
-    
-    try:
-        res = requests.post(url, json=payload)
-        print("PushPlus 推送响应:", res.text)
-    except Exception as e:
-        print(f"PushPlus 推送失败: {e}")
-
-    # 归档 Markdown
+    # 🟢 补全归档逻辑：将 HTML 直接保存到本地 reports 文件夹
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
-        file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.md")
+        file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.html")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f"# 📈 资产配置周报 ({today_str})\n\n已推送到 PushPlus 微信端，请在手机查看原生排版。")
+            f.write(html_content)
+        print(f"✅ HTML 报告已成功本地归档，路径: {file_path}")
     except Exception as e:
-        pass
+        print(f"⚠️ 报告归档失败: {e}")
+
+    # 发送邮件引擎
+    if not EMAIL_USER or not EMAIL_PASS:
+        print("未检测到 EMAIL_USER 或 EMAIL_PASS 环境变量，跳过邮件推送。")
+        return
+        
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_USER
+        msg['To'] = EMAIL_USER  # 默认发送给自己
+        msg['Subject'] = f"📈 资产大盘全景看板 ({datetime.datetime.now().strftime('%m-%d')})"
+        msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+        
+        # 智能匹配 SMTP 服务器（QQ 或 网易）
+        smtp_server = "smtp.qq.com" if "@qq.com" in EMAIL_USER else "smtp.163.com"
+        
+        server = smtplib.SMTP_SSL(smtp_server, 465)
+        server.login(EMAIL_USER, EMAIL_PASS)
+        server.sendmail(EMAIL_USER, EMAIL_USER, msg.as_string())
+        server.quit()
+        print("✅ 邮件推送成功！请在手机邮箱客户端或微信QQ邮箱提醒查看。")
+    except Exception as e:
+        print(f"❌ 邮件推送失败: {e}")
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行 PushPlus HTML 原生推送渲染...")
+    print(f"[{start_time}] 引擎点火，执行原生邮件直连通道渲染...")
     
     assets_清单 = load_portfolio()
     all_reports = []
@@ -349,5 +313,5 @@ if __name__ == "__main__":
         if res: all_reports.append(res)
         else: failed_assets.append(item)
             
-    send_pushplus_report(all_reports, failed_assets)
+    send_email_report(all_reports, failed_assets)
     print(f"扫描完毕，总耗时: {(datetime.datetime.now() - start_time).seconds} 秒")
