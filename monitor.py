@@ -5,9 +5,8 @@ import os
 import datetime
 
 # ================= 核心系统配置 =================
-# ⚠️ 注意：需在 GitHub Actions Secrets 中配置这两个新变量
-WXPUSHER_APP_TOKEN = os.environ.get('WXPUSHER_APP_TOKEN')
-WXPUSHER_UID = os.environ.get('WXPUSHER_UID')
+# ⚠️ 注意：需在 GitHub Actions Secrets 中配置此变量
+PUSHPLUS_TOKEN = os.environ.get('PUSHPLUS_TOKEN')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
@@ -237,7 +236,6 @@ def build_html_table(assets):
     if not assets: return ""
     
     html = '<table style="width:100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;">'
-    # 表头设计：去掉了涨跌额，保留名称/代码、最新、涨幅三列
     html += '<tr style="color:#888; font-size:12px; border-bottom:1px solid #eaeaea;">'
     html += '<th style="text-align:left; padding:8px 0; font-weight:normal;">名称/代码</th>'
     html += '<th style="text-align:right; padding:8px 0; font-weight:normal;">最新</th>'
@@ -257,7 +255,6 @@ def build_html_table(assets):
             color = "#999999" # 平盘灰
             sign = ""
             
-        # 动态小数位：加密货币价格保留2位，ETF/股票保留3位，基金保留4位
         if r['type'] == 'crypto': price_dec = 2
         elif r['type'] == 'jj': price_dec = 4
         else: price_dec = 3
@@ -266,7 +263,6 @@ def build_html_table(assets):
         pct_str = f"{sign}{pct:.2f}%"
         
         html += '<tr style="border-bottom:1px solid #f5f5f5;">'
-        # 核心：利用 div 和 br 实现名称与代码折叠展示
         html += f'<td style="padding:10px 0;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px;">{r["name"]}</div><div style="font-size:11px; color:#999;">{r["ticker"]}</div></td>'
         html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:16px; font-weight:500;">{price_str}</td>'
         html += f'<td style="text-align:right; padding:10px 0; color:{color}; font-size:15px; font-weight:500;">{pct_str}</td>'
@@ -281,7 +277,7 @@ def build_section(title, assets):
     html += build_html_table(assets)
     return html
 
-def send_wxpusher_report(all_reports, failed_list):
+def send_pushplus_report(all_reports, failed_list):
     # 统一按涨跌幅降序
     all_reports.sort(key=lambda x: x['pct_change'], reverse=True)
     
@@ -307,39 +303,38 @@ def send_wxpusher_report(all_reports, failed_list):
         
     html_content += '</div>'
 
-    # 推送至 WxPusher
-    if not WXPUSHER_APP_TOKEN or not WXPUSHER_UID:
-        print("未检测到 WXPUSHER_APP_TOKEN 或 WXPUSHER_UID，跳过推送。")
+    # 推送至 PushPlus
+    if not PUSHPLUS_TOKEN:
+        print("未检测到 PUSHPLUS_TOKEN 环境变量，跳过推送。")
         return
         
-    url = "https://wxpusher.zjiecode.com/api/send/message"
+    url = "http://www.pushplus.plus/send"
     payload = {
-        "appToken": WXPUSHER_APP_TOKEN,
+        "token": PUSHPLUS_TOKEN,
+        "title": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产全景看板", 
         "content": html_content,
-        "summary": f"📈 {datetime.datetime.now().strftime('%m-%d')} 资产全景看板", 
-        "contentType": 2, # 2表示原生HTML渲染
-        "uids": [WXPUSHER_UID]
+        "template": "html"
     }
     
     try:
         res = requests.post(url, json=payload)
-        print("WxPusher 推送响应:", res.text)
+        print("PushPlus 推送响应:", res.text)
     except Exception as e:
-        print(f"WxPusher 推送失败: {e}")
+        print(f"PushPlus 推送失败: {e}")
 
-    # 同时归档 Markdown 格式到 Github 仓库 (去掉 HTML 标签纯文本保存)
+    # 归档 Markdown
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
         file_path = os.path.join(REPORT_DIR, f"{today_str}_weekly_report.md")
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(f"# 📈 资产配置周报 ({today_str})\n\n已推送到 WxPusher，查看手机端原生排版。")
+            f.write(f"# 📈 资产配置周报 ({today_str})\n\n已推送到 PushPlus 微信端，请在手机查看原生排版。")
     except Exception as e:
         pass
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行仿原生 APP 三列极简排版...")
+    print(f"[{start_time}] 引擎点火，执行 PushPlus HTML 原生推送渲染...")
     
     assets_清单 = load_portfolio()
     all_reports = []
@@ -354,5 +349,5 @@ if __name__ == "__main__":
         if res: all_reports.append(res)
         else: failed_assets.append(item)
             
-    send_wxpusher_report(all_reports, failed_assets)
+    send_pushplus_report(all_reports, failed_assets)
     print(f"扫描完毕，总耗时: {(datetime.datetime.now() - start_time).seconds} 秒")
