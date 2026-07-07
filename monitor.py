@@ -262,7 +262,7 @@ def send_email_report(all_reports, failed_list):
         
     html_content += '</div></body></html>'
 
-    # 🟢 补全归档逻辑：将 HTML 直接保存到本地 reports 文件夹
+    # 本地 HTML 归档
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -285,14 +285,15 @@ def send_email_report(all_reports, failed_list):
         msg['Subject'] = f"📈 资产大盘全景看板 ({datetime.datetime.now().strftime('%m-%d')})"
         msg.attach(MIMEText(html_content, 'html', 'utf-8'))
         
-        # 智能匹配 SMTP 服务器（QQ 或 网易）
-        smtp_server = "smtp.qq.com" if "@qq.com" in EMAIL_USER else "smtp.163.com"
+        # 🟢 终极修复：自动提取邮箱后缀，完美支持 126、163、QQ 等所有主流邮箱
+        domain = EMAIL_USER.split('@')[-1]
+        smtp_server = f"smtp.{domain}"
         
         server = smtplib.SMTP_SSL(smtp_server, 465)
         server.login(EMAIL_USER, EMAIL_PASS)
         server.sendmail(EMAIL_USER, EMAIL_USER, msg.as_string())
         server.quit()
-        print("✅ 邮件推送成功！请在手机邮箱客户端或微信QQ邮箱提醒查看。")
+        print(f"✅ 邮件推送成功！已通过 {smtp_server} 发送。")
     except Exception as e:
         print(f"❌ 邮件推送失败: {e}")
 
