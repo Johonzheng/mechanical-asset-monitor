@@ -4,6 +4,7 @@ import requests
 import os
 import datetime
 import smtplib
+import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -14,6 +15,7 @@ EMAIL_PASS = os.environ.get('EMAIL_PASS')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, 'portfolio.csv')
 REPORT_DIR = os.path.join(BASE_DIR, 'reports')
+STATE_FILE = os.path.join(REPORT_DIR, 'trend_state.json') # 状态记忆引擎文件
 
 # 定义市场分类排序逻辑与对应的 Emoji 图标
 MARKET_CONFIG = {
@@ -199,7 +201,6 @@ def fetch_fund_data(item):
             content = res.text
             start_idx = content.find('Data_netWorthTrend = ') + len('Data_netWorthTrend = ')
             end_idx = content.find(';', start_idx)
-            import json
             data = json.loads(content[start_idx:end_idx])
             cleaned_rows = []
             for entry in data:
@@ -229,7 +230,6 @@ def fetch_crypto_data(item):
 # ================= 🚀 HTML UI 渲染引擎 =================
 
 def build_html_table(assets):
-    """构建单类别下的资产表格"""
     if not assets: return ""
     html = '<table style="width:100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;">'
     html += '<tr style="color:#888; font-size:12px; border-bottom:1px solid #eaeaea;">'
@@ -251,22 +251,29 @@ def build_html_table(assets):
         price_str = f"{r['current_price']:.{price_dec}f}"
         pct_str = f"{sign}{pct:.2f}%"
         
-        # 极值标签渲染
+        # 1. 极值标签渲染
         extreme_tag = ""
         if r.get('extremum_signal') == '新高':
-            extreme_tag = ' <span style="background-color:#F9293E; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:text-bottom;">新高</span>'
+            extreme_tag = '<span style="background-color:#F9293E; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">新高</span>'
         elif r.get('extremum_signal') == '新低':
-            extreme_tag = ' <span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:text-bottom;">新低</span>'
+            extreme_tag = '<span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">新低</span>'
 
-        # 多空趋势渲染
+        # 2. 拐点异动标签渲染 (新加入逻辑)
+        change_tag = ""
+        if r.get('trend_change_signal') == '转多':
+            change_tag = '<span style="background-color:#F9293E; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">🔄 转多</span>'
+        elif r.get('trend_change_signal') == '转空':
+            change_tag = '<span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">⚠️ 转空</span>'
+
+        # 3. 多空趋势渲染
         trend_str = r.get('ma_trend', '未知')
         if trend_str == "多头": trend_color = "#F9293E"
         elif trend_str == "空头": trend_color = "#00AA3B"
         else: trend_color = "#999999"
         
-        # padding 调整为 10px 4px，名称使用 flex 布局以对齐标签
+        # 加入 flex-wrap:wrap 保护名字过长或标签过多时自动优美换行
         html += '<tr style="border-bottom:1px solid #f5f5f5;">'
-        html += f'<td style="padding:10px 4px;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px; display:flex; align-items:center;"><span>{r["name"]}</span>{extreme_tag}</div><div style="font-size:11px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
+        html += f'<td style="padding:10px 4px;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px; display:flex; align-items:center; flex-wrap:wrap;"><span>{r["name"]}</span>{extreme_tag}{change_tag}</div><div style="font-size:11px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
         html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:16px; font-weight:600;">{price_str}</td>'
         html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:15px; font-weight:600;">{pct_str}</td>'
         html += f'<td style="text-align:right; padding:10px 4px; color:{trend_color}; font-size:14px; font-weight:bold;">{trend_str}</td>'
@@ -276,26 +283,18 @@ def build_html_table(assets):
     return html
 
 def build_pool_html(pool_title, pool_assets):
-    """构建核心/备选大模块（包含内部标签分割）"""
     if not pool_assets: return ""
-    
-    # 模块大标题
     html = f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 30px 0 15px 0; padding-left: 10px; border-left: 4px solid #337ab7;">{pool_title}</div>'
-    
-    # 按照 MARKET_CONFIG 定义的市场顺序进行渲染
     for market, emoji in MARKET_CONFIG.items():
         market_assets = [a for a in pool_assets if a.get('market') == market]
         if market_assets:
-            # 仿截图的灰色背景分割标签带
             html += f'<div style="background-color: #f4f5f7; color: #444; font-size: 14px; font-weight: bold; padding: 8px 12px; margin-top: 15px; border-radius: 4px; display: flex; align-items: center;">{emoji} &nbsp;{market}</div>'
             html += build_html_table(market_assets)
             
-    # 处理未明确在配置列表中的其他市场资产
     other_assets = [a for a in pool_assets if a.get('market') not in MARKET_CONFIG.keys()]
     if other_assets:
         html += f'<div style="background-color: #f4f5f7; color: #444; font-size: 14px; font-weight: bold; padding: 8px 12px; margin-top: 15px; border-radius: 4px; display: flex; align-items: center;">🏷️ &nbsp;其他分类</div>'
         html += build_html_table(other_assets)
-        
     return html
 
 def send_email_report(all_reports, failed_list):
@@ -303,26 +302,19 @@ def send_email_report(all_reports, failed_list):
         print("没有成功获取的数据，跳过发送邮件。")
         return
 
-    # 全局降序排序
     all_reports.sort(key=lambda x: x['pct_change'], reverse=True)
     
-    # 提取三大池
     core_pool = [r for r in all_reports if 'core' in str(r.get('pool', '')).lower()]
     watch_pool = [r for r in all_reports if 'core' not in str(r.get('pool', '')).lower() and 'watch' in str(r.get('pool', '')).lower()]
     
-    # 构建 HTML 骨架
     html_content = f'<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body style="background-color: #f0f2f5; padding: 15px 5px; font-family: sans-serif; margin:0;">'
     html_content += f'<div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">'
-    
-    # 顶部标题
     html_content += f'<h2 style="text-align:center; color:#2c3e50; margin-top:5px; margin-bottom: 10px; font-size:22px;">📊 资产大盘全景看板</h2>'
     html_content += f'<div style="text-align:center; color:#888; font-size:12px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px;">生成时间: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")}</div>'
     
-    # 渲染核心模块与备选模块
     if core_pool: html_content += build_pool_html("💼 核心持仓", core_pool)
     if watch_pool: html_content += build_pool_html("👀 备选观察", watch_pool)
         
-    # 渲染异常信息大模块 (直接罗列)
     if failed_list:
         html_content += f'<div style="font-size:18px; font-weight:bold; color:#111; margin: 30px 0 15px 0; padding-left: 10px; border-left: 4px solid #e6a23c;">⚠️ 异常信息</div>'
         html_content += f'<div style="background-color: #fcf8e3; color: #e6a23c; font-size: 13px; padding: 12px; border-radius: 6px; border: 1px solid #faebcc; line-height: 1.6;">'
@@ -333,7 +325,6 @@ def send_email_report(all_reports, failed_list):
         
     html_content += '</div></body></html>'
 
-    # 本地归档保存
     try:
         if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
         today_str = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -344,7 +335,6 @@ def send_email_report(all_reports, failed_list):
     except Exception as e:
         print(f"⚠️ 报告归档失败: {e}")
 
-    # 发送邮件引擎
     if not EMAIL_USER or not EMAIL_PASS:
         print("未检测到 EMAIL_USER 或 EMAIL_PASS 环境变量，跳过邮件推送。")
         return
@@ -369,11 +359,20 @@ def send_email_report(all_reports, failed_list):
 
 if __name__ == "__main__":
     start_time = datetime.datetime.now()
-    print(f"[{start_time}] 引擎点火，执行标签分割与多空阵营渲染...")
+    print(f"[{start_time}] 引擎点火，执行状态比对与趋势拐点渲染...")
     
     assets_清单 = load_portfolio()
     all_reports = []
     failed_assets = [] 
+    
+    # 🟢 1. 读取历史趋势记忆文件
+    old_state = {}
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                old_state = json.load(f)
+        except Exception as e:
+            print(f"⚠️ 读取历史状态失败，本次将重新生成基准: {e}")
     
     for item in assets_清单:
         res = None
@@ -381,8 +380,36 @@ if __name__ == "__main__":
         elif item['type'] == 'crypto': res = fetch_crypto_data(item)
         elif item['type'] == 'jj': res = fetch_fund_data(item)
         
-        if res: all_reports.append(res)
-        else: failed_assets.append(item)
+        if res: 
+            # 🟢 2. 时空比对：捕捉趋势反转信号 (拐点)
+            ticker = res['ticker']
+            cur_trend = res['ma_trend']
+            trend_change_signal = ""
             
+            if ticker in old_state and cur_trend != "未知" and old_state[ticker] != "未知":
+                prev_trend = old_state[ticker]
+                if prev_trend == "空头" and cur_trend == "多头":
+                    trend_change_signal = "转多"
+                elif prev_trend == "多头" and cur_trend == "空头":
+                    trend_change_signal = "转空"
+            
+            res['trend_change_signal'] = trend_change_signal
+            all_reports.append(res)
+        else: 
+            failed_assets.append(item)
+            
+    # 🟢 3. 合并并保存最新的趋势状态，留给下周使用
+    if all_reports:
+        new_state = {r['ticker']: r['ma_trend'] for r in all_reports if r['ma_trend'] != "未知"}
+        # 使用字典合并，避免因为本次个别标的抓取失败而丢失它的历史记忆
+        merged_state = {**old_state, **new_state}
+        try:
+            if not os.path.exists(REPORT_DIR): os.makedirs(REPORT_DIR)
+            with open(STATE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(merged_state, f, ensure_ascii=False)
+            print("✅ 趋势状态机已更新备份。")
+        except Exception as e:
+            print(f"⚠️ 状态记忆保存失败: {e}")
+
     send_email_report(all_reports, failed_assets)
     print(f"扫描完毕，总耗时: {(datetime.datetime.now() - start_time).seconds} 秒")
