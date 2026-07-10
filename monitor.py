@@ -251,19 +251,20 @@ def build_html_table(assets):
         price_str = f"{r['current_price']:.{price_dec}f}"
         pct_str = f"{sign}{pct:.2f}%"
         
-        # 1. 极值标签渲染
+        # 1. 极值标签渲染 (保留在左侧)
         extreme_tag = ""
         if r.get('extremum_signal') == '新高':
             extreme_tag = '<span style="background-color:#F9293E; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">新高</span>'
         elif r.get('extremum_signal') == '新低':
             extreme_tag = '<span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">新低</span>'
 
-        # 2. 拐点异动标签渲染 (新加入逻辑)
+        # 2. 拐点异动标签渲染 (准备移入右侧)
+        # 注意：这里去掉了 margin-left，因为在 Flex 布局中使用了 gap 属性自动控制间距
         change_tag = ""
         if r.get('trend_change_signal') == '转多':
-            change_tag = '<span style="background-color:#F9293E; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">🔄 转多</span>'
+            change_tag = '<span style="background-color:#F9293E; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; white-space:nowrap;">🔄 转多</span>'
         elif r.get('trend_change_signal') == '转空':
-            change_tag = '<span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; margin-left:5px; white-space:nowrap;">⚠️ 转空</span>'
+            change_tag = '<span style="background-color:#00AA3B; color:#fff; font-size:10px; padding:2px 4px; border-radius:3px; white-space:nowrap;">⚠️ 转空</span>'
 
         # 3. 多空趋势渲染
         trend_str = r.get('ma_trend', '未知')
@@ -271,12 +272,13 @@ def build_html_table(assets):
         elif trend_str == "空头": trend_color = "#00AA3B"
         else: trend_color = "#999999"
         
-        # 加入 flex-wrap:wrap 保护名字过长或标签过多时自动优美换行
         html += '<tr style="border-bottom:1px solid #f5f5f5;">'
-        html += f'<td style="padding:10px 4px;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px; display:flex; align-items:center; flex-wrap:wrap;"><span>{r["name"]}</span>{extreme_tag}{change_tag}</div><div style="font-size:11px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
+        # 名称列：现在只有极值标签 (新高/新低)
+        html += f'<td style="padding:10px 4px;"><div style="font-size:15px; color:#333; font-weight:bold; margin-bottom:2px; display:flex; align-items:center; flex-wrap:wrap;"><span>{r["name"]}</span>{extreme_tag}</div><div style="font-size:11px; color:#999; font-family:Consolas, monospace;">{r["ticker"]}</div></td>'
         html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:16px; font-weight:600;">{price_str}</td>'
         html += f'<td style="text-align:right; padding:10px 4px; color:{color}; font-size:15px; font-weight:600;">{pct_str}</td>'
-        html += f'<td style="text-align:right; padding:10px 4px; color:{trend_color}; font-size:14px; font-weight:bold;">{trend_str}</td>'
+        # 趋势列：加入 Flexbox，使 [趋势文字] 和 [转多/转空标签] 优雅对齐
+        html += f'<td style="text-align:right; padding:10px 4px;"><div style="display:flex; justify-content:flex-end; align-items:center; gap:5px;"><span style="color:{trend_color}; font-size:14px; font-weight:bold;">{trend_str}</span>{change_tag}</div></td>'
         html += '</tr>'
         
     html += '</table>'
