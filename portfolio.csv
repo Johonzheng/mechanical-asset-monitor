@@ -12,7 +12,7 @@ PG,宝洁,yf,core,美股
 513050.SS,中概互联网ETF易方达（参照）,yf,core watch,港股
 012920,易方达全球成长精选混合(QDII)A,jj,core,美股
 MSFT,微软,yf,core,美股
-TLT,iShares安硕20年期以上美国国债,yf,core watch,国内外债券
+TLT,iShares安硕20年期以上美国国债,yf,core,国内外债券
 006373,国富全球科技互联混合(QDII)人民币A,jj,core,美股
 050025,博时标普500ETF联接A,jj,core,美股
 TSM,台积电,yf,core,美股
@@ -102,13 +102,13 @@ SHY,美国国债1-3年ETF-iShares,yf,core,国内外债券
 018920,东方红中证优势成长指数发起A,jj,core,A股
 600887.SS,伊利股份,yf,core,A股
 601899.SS,紫金矿业,yf,core,A股
-159698.SZ,粮食ETF鹏华（参照）,yf,core watch,大宗商品及贵金属
+159698.SZ,粮食ETF鹏华（参照）,yf,core,大宗商品及贵金属
 BTC/USDT,比特币,crypto,core,加密货币
 ETH/USDT,以太坊,crypto,core,加密货币
 588080.SS,科创50ETF（参照）,yf,watch,A股
-159922.SZ,中证500ETF嘉实（参照）,yf,core watch,A股
+159922.SZ,中证500ETF嘉实（参照）,yf,core,A股
 159915.SZ,创业板ETF（参照）,yf,watch,A股
-515800.SS,中证800ETF汇添富（参照）,yf,core watch,A股
+515800.SS,中证800ETF汇添富（参照）,yf,core,A股
 159592.SZ,中证A50ETF银华（参照）,yf,watch,A股
 510050.SS,上证50ETF华夏（参照）,yf,core watch,A股
 QQQM,纳斯达克100（参照）,yf,core watch,美股
