@@ -1,7 +1,6 @@
 ticker,name,type,pool,market
 600900.SS,长江电力,yf,core,A股
 000895.SZ,双汇发展,yf,core,A股
-NVDA,英伟达,yf,core,美股
 512690.SS,酒ETF鹏华,yf,core,A股
 512050.SS,A500ETF华夏（参照）,yf,core watch,A股
 META,Meta Platforms Inc.,yf,core,美股
