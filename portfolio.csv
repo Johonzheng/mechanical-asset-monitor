@@ -70,7 +70,6 @@ SPMO,Invesco Exchange Traded Fd Tr Ii S&P 500 Momentum Etf,yf,core,美股
 012708,东方红中证东方红红利低波动指数A,jj,core,A股
 513080.SS,法国ETF华安（参照）,yf,core watch,其他海外市场
 021206,易方达中证A50ETF联接发起式A,jj,core,A股
-002272,新华科技创新主题灵活配置混合,jj,core,A股
 00700.HK,腾讯控股,yf,core,港股
 021457,易方达恒生红利低波ETF联接A,jj,core,港股
 563020.SS,红利低波ETF易方达,yf,core,A股
@@ -78,10 +77,8 @@ VOO,标普500ETF-Vanguard（标普500指数参照）,yf,core watch,美股
 161725,招商中证白酒指数A,jj,core,A股
 012348,天弘恒生科技ETF联接A,jj,core,港股
 159870.SZ,化工ETF鹏华（化工行业参照）,yf,core watch,A股
-163411,兴全精选混合基金,jj,core,A股
 159980.SZ,有色ETF大成（有色行业参照）,yf,core watch,大宗商品及贵金属
 012380,创金合信港股互联网3个月持有期混合(QDII)C,jj,core,港股
-001410,信澳新能源产业股票A,jj,core,A股
 JPM,摩根大通,yf,core,美股
 TSLA,特斯拉,yf,core,美股
 110017,易方达增强回报债券A,jj,core,国内外债券
