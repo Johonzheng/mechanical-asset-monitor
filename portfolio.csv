@@ -14,7 +14,6 @@ TLT,iShares安硕20年期以上美国国债,yf,core,国内外债券
 050025,博时标普500ETF联接A,jj,core,美股
 TSM,台积电,yf,core,美股
 001668,汇添富全球移动互联混合(QDII)人民币A,jj,core,美股
-164824.SZ,印度基金LOF（参照）,yf,core watch,其他海外市场
 007280,摩根日本精选股票(QDII)A,jj,core,其他海外市场
 006105,宏利印度股票(QDII)A,jj,core,其他海外市场
 SGOV,Ishares 0-3 Month Treasury Bond Etf,yf,core,国内外债券
@@ -24,14 +23,11 @@ SGOL,ETFS实物瑞士黄金股份,yf,core,大宗商品及贵金属
 100050,富国全球债券(QDII)人民币A,jj,core,国内外债券
 09988.HK,阿里巴巴-W,yf,core,港股
 159985.SZ,豆粕ETF华夏（参照）,yf,core watch,大宗商品及贵金属
-501018.SS,南方原油LOF,yf,core,大宗商品及贵金属
 159928.SZ,消费ETF汇添富（消费行业参照）,yf,core watch,A股
 159659.SZ,纳斯达克100ETF招商,yf,core,美股
-162415.SZ,美国消费LOF（参照）,yf,core watch,美股
 270042,广发纳斯达克100ETF联接人民币(QDII)A,jj,core,美股
 PFF,优先股指数ETF-iShares S&P,yf,core,美股
 KO,可口可乐,yf,core,美股
-162411.SZ,华宝油气LOF,yf,core,大宗商品及贵金属
 513520.SS,日经ETF华夏（日经225参照）,yf,core watch,其他海外市场
 159920.SZ,恒生ETF华夏（恒生指数参照）,yf,core watch,港股
 00388.HK,香港交易所,yf,core,港股
@@ -39,6 +35,7 @@ KO,可口可乐,yf,core,美股
 ORCL,甲骨文,yf,core,美股
 00001.HK,长和,yf,core,港股
 00005.HK,汇丰控股,yf,core,港股
+03097.HK,FGX原油,yf,core,大宗商品及贵金属
 161125,易方达标普500指数(QDII-LOF)A(人民币份额),jj,core,美股
 511380.SS,可转债ETF博时,yf,core,A股
 006282,摩根欧洲动力策略股票(QDII)A,jj,core,其他海外市场
@@ -85,7 +82,6 @@ TSLA,特斯拉,yf,core,美股
 SHY,美国国债1-3年ETF-iShares,yf,core,国内外债券
 159209.SZ,红利质量ETF招商,yf,core,A股
 515080.SS,中证红利ETF招商（中证红利指数参照）,yf,core watch,A股
-160719,嘉实黄金LOF,jj,core,大宗商品及贵金属
 159770.SZ,机器人ETF天弘（机器人行业参照）,yf,watch,A股
 007431,浙商之江凤凰联接A,jj,core,A股
 018920,东方红中证优势成长指数发起A,jj,core,A股
